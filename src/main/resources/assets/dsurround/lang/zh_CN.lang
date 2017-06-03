@@ -44,54 +44,54 @@ cfg.keybind.msg.LLDisplayMode=光照等级显示模式 %s
 cfg.keybind.msg.LLSafeBlocks=光照等级显示隐藏安全方块 %s
 cfg.keybind.msg.LLDisplay=光照等级显示 %s
 
-msg.RainIntensitySet=§9Rain intensity set to %1$s
-msg.MinRainIntensitySet=§9Minimum rain intensity set to %1$s
-msg.MaxRainIntensitySet=§9Maximum rain intensity set to %1$s
-msg.RainReset=§9World rain parameters have been reset
-msg.BiomeReload=§9Biome configuration has been reloaded
+msg.RainIntensitySet=§9下雨强度设置为 %1$s
+msg.MinRainIntensitySet=§9最低下雨强度设置为 %1$s
+msg.MaxRainIntensitySet=§9最大下雨强度设置为 %1$s
+msg.RainReset=§9世界下雨参数重置
+msg.BiomeReload=§9生物群系设置成功重载
 
-msg.RainTimeSet=§9Rain time set to %1$s
-msg.ThunderTimeSet=§9Thunder time set to %1$s
-msg.ThunderThresholdSet=§9Thunder threshold set to %1$s
+msg.RainTimeSet=§9下雨时间设置为 %1$s
+msg.ThunderTimeSet=§9打雷时间设置为 %1$s
+msg.ThunderThresholdSet=§9打雷阈值设置为 %1$s
 
-msg.Autorestart.notice=It looks like the sound system has crashed.
-msg.Autorestart.restart=Attempting to restart...
-msg.Autorestart.manual=Restart of client recommended.
+msg.Autorestart.notice=看起来声音系统崩溃了
+msg.Autorestart.restart=正在尝试重启....
+msg.Autorestart.manual=推荐重启客户端
 
 # 版本检查
-msg.NewVersion.dsurround=["§6Update Available: §9[",{"text":"§2%1$s §ev%2$s§f","color":"gold","hoverEvent":{"action":"show_text","value":{"text":"Click for CurseForge Project Page","color":"aqua"}},"clickEvent":{"action":"open_url","value":"%3$s"}},"§9]"]
+msg.NewVersion.dsurround=["§6新的版本可用： §9[",{"text":"§2%1$s §ev%2$s§f","color":"gold","hoverEvent":{"action":"show_text","value":{"text":"点击跳转至 CurseForge 页面","color":"aqua"}},"clickEvent":{"action":"open_url","value":"%3$s"}},"§9]"]
 
 # 配置选项
-cfg.asm.cat.ASM=ASM Transformer Options
-cfg.asm.cat.ASM.tooltip=Controls ASM transforms Dynamic Surroundings performs at startup
-cfg.asm.EnableWeather=Weather Control
-cfg.asm.EnableWeather.tooltip=Enable/disable ASM transformations to permit weather (rain, snow, splash, dust storms, auroras)
-cfg.asm.EnableSleepReset=Weather Reset on Sleep Control
-cfg.asm.EnableSleepReset.tooltip=Enable/disable ASM transformations to allow control of player sleep impact on weather reset
+cfg.asm.cat.ASM=ASM Transformer 设置
+cfg.asm.cat.ASM.tooltip=控制 ASM 更改 Dynamic Surroundings 启动
+cfg.asm.EnableWeather=天气控制
+cfg.asm.EnableWeather.tooltip=启用/停用 ASM 启用天气(下雨、下雪、沙尘暴等)
+cfg.asm.EnableSleepReset=睡觉重置天气
+cfg.asm.EnableSleepReset.tooltip=启用/停用 ASM 允许玩家睡觉影响天气
 
-cfg.logging.cat.Logging=Logging Options
-cfg.logging.cat.Logging.tooltip=Defines how Dynamic Surroundings logging will behave
-cfg.logging.EnableDebug=Debug Logging
-cfg.logging.EnableDebug.tooltip=Enables/disables debug logging of the mod
-cfg.logging.VersionCheck=Online Version Check Result
-cfg.logging.VersionCheck.tooltip=Enables/disables display of version check information
-cfg.logging.DebugDialog=Debug Dialog
-cfg.logging.DebugDialog.tooltip=Enables/disables display of debug dialog
-cfg.logging.ServerStats=Report Server Stats
-cfg.logging.ServerStats.tooltip=Enables/disables reporting of server stats
+cfg.logging.cat.Logging=日志设置
+cfg.logging.cat.Logging.tooltip=设置 Dynamic Surroundings 日志记录设置
+cfg.logging.EnableDebug=Debug 日志
+cfg.logging.EnableDebug.tooltip=启用/停用日志记录等级
+cfg.logging.VersionCheck=版本检查结果
+cfg.logging.VersionCheck.tooltip=启用/停用版本检查显示
+cfg.logging.DebugDialog=Debug 对话
+cfg.logging.DebugDialog.tooltip=启用/停用日志对话显示
+cfg.logging.ServerStats=提交服务器统计
+cfg.logging.ServerStats.tooltip=启用/停用服务器统计的提交
 cfg.logging.FlagMask=Debug Flag Mask
 cfg.logging.FlagMask.tooltip=Bitmask for toggling various debug traces
 
-cfg.rain.cat.Rain=Rain Options
-cfg.rain.cat.Rain.tooltip=Options that control rain effects in the client
-cfg.rain.RainVolume=Rain Sound Level
-cfg.rain.RainVolume.tooltip=Volume scale factor to apply to rain sound level to adjust
-cfg.rain.VanillaRain=Use Vanilla Algorithms
-cfg.rain.VanillaRain.tooltip=Let Vanilla handle rain intensity and time windows
-cfg.rain.ParticleCount=Particle Count Base
-cfg.rain.ParticleCount.tooltip=Base count of rain splash particles to generate per tick
-cfg.rain.ResetOnSleep=Reset Rain on Sleep
-cfg.rain.ResetOnSleep.tooltip=Reset rain/thunder when all players sleep
+cfg.rain.cat.Rain=下雨设置
+cfg.rain.cat.Rain.tooltip=控制客户端下雨特效
+cfg.rain.RainVolume=雨声等级
+cfg.rain.RainVolume.tooltip=调节下雨的音量
+cfg.rain.VanillaRain=使用原版算法
+cfg.rain.VanillaRain.tooltip=使用原版算法控制下雨强度
+cfg.rain.ParticleCount=粒子数量
+cfg.rain.ParticleCount.tooltip=每 tick 生成的基础的粒子数量
+cfg.rain.ResetOnSleep=睡觉重置下雨
+cfg.rain.ResetOnSleep.tooltip=玩家睡觉重置雷电/下雨
 cfg.rain.ActiveTimeConst=Active duration of rain, constant
 cfg.rain.ActiveTimeConst.tooltip=Base time rain is active, in ticks
 cfg.rain.ActiveTimeVariable=Active duration of rain, variable
