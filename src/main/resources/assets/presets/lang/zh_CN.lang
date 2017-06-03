@@ -3,52 +3,52 @@
 msg.presets=预设！
 
 # Version checking strings
-msg.NewVersion.presets=["§6Update Available: §9[",{"text":"§2%1$s §ev%2$s§f","color":"gold","hoverEvent":{"action":"show_text","value":{"text":"Click for CurseForge Project Page","color":"aqua"}},"clickEvent":{"action":"open_url","value":"%3$s"}},"§9]"]
+msg.NewVersion.presets=["§6新的版本可用： §9[",{"text":"§2%1$s §ev%2$s§f","color":"gold","hoverEvent":{"action":"show_text","value":{"text":"点击跳转到 CurseForge 页面","color":"aqua"}},"clickEvent":{"action":"open_url","value":"%3$s"}},"§9]"]
 
 # Metadata Updates
 presets.metadata.Name=§3预设！
 presets.metadata.Credits=\n\n§6Tsoccerguy3§r for §2The Idea§r\n\n
 presets.metadata.Authors=§6OreCruncher§r
-presets.metadata.Description=Save/Restore §6configuration data§r using §6presets§r for ease of use
+presets.metadata.Description=通过§6预设§r保存§6配置信息
 
 # Keybindings
-presets.cfg.keybind.Presets=Preset Selection
+presets.cfg.keybind.Presets=预设选择
 
 # Config options
-presets.cfg.logging.cat.Logging=Logging Options
-presets.cfg.logging.cat.Logging.tooltip=Defines how Presets! logging will behave
-presets.cfg.logging.EnableDebug=Debug Logging
-presets.cfg.logging.EnableDebug.tooltip=Enables/disables debug logging of the mod
-presets.cfg.logging.VersionCheck=Online Version Check Result
-presets.cfg.logging.VersionCheck.tooltip=Enables/disables display of version check information
+presets.cfg.logging.cat.Logging=日志设定
+presets.cfg.logging.cat.Logging.tooltip=设置预设！日志
+presets.cfg.logging.EnableDebug=Debug 日志
+presets.cfg.logging.EnableDebug.tooltip=启用/停用日志记录
+presets.cfg.logging.VersionCheck=在线版本检查
+presets.cfg.logging.VersionCheck.tooltip=启用/停用版本检查显示信息
 
-# Buttons
-presets.button.Done=Done
-presets.button.Cancel=Cancel
-presets.button.Refresh=Refresh
-presets.button.Refresh.tooltip=Scans the configuration directory looking for new preset configuration files.
-presets.button.Create=Create
-presets.button.Create.tooltip=Create a new preset configuration file based on current Minecraft configuration settings.
-presets.button.Apply=Apply
-presets.button.Apply.tooltip=Apply the settings from the selected preset configuration file to the Minecraft configuration.
-presets.button.Save=Save
-presets.button.Save.tooltip=Save the current Minecraft configuration OVER the selected preset configuration file.
-presets.button.Delete=Delete
-presets.button.Delete.tooltip=Delete the selected preset configuration file.
-presets.button.Edit=Edit
-presets.button.Edit.tooltip=Edit the selected preset configuration metadata.  This will not change any settings in the preset configuration file!
+# 按钮
+presets.button.Done=完成
+presets.button.Cancel=取消
+presets.button.Refresh=刷新
+presets.button.Refresh.tooltip=扫描配置文件夹，载入新的预设设置
+presets.button.Create=创建
+presets.button.Create.tooltip=创建基于目前Minecraft设置的新的预设设置
+presets.button.Apply=应用
+presets.button.Apply.tooltip=将选择的预设文件应用到当前Minecraft设置里
+presets.button.Save=保存
+presets.button.Save.tooltip=将当前Minecraft配置覆盖保存至选择的预设文件中
+presets.button.Delete=删除
+presets.button.Delete.tooltip=删除选择的预设文件
+presets.button.Edit=编辑
+presets.button.Edit.tooltip=编辑当前选择的预设文件。不会改变当前启用的任何设置！
 
 # PresetInfoModifyGui
-presets.dlg.CreateTitle=Create Preset
-presets.dlg.EditTitle=Edit Preset
-presets.dlg.FileName=Filename:
-presets.dlg.Title=Title:
-presets.dlg.Description=Description:
-presets.dlg.Required=REQUIRED
+presets.dlg.CreateTitle=新建预设
+presets.dlg.EditTitle=编辑预设
+presets.dlg.FileName=文件名：
+presets.dlg.Title=标题：
+presets.dlg.Description=描述：
+presets.dlg.Required=必需
 
 # PresetsConfigGui
-presets.dlg.ApplyWarning=Applying this preset will overwrite existing settings.  Continue?
-presets.dlg.SaveWarning=Are you sure you want to SAVE over this preset?
-presets.dlg.DeleteWarning=Are you sure you want to delete this preset?
-presets.dlg.RestartRequired=NOTE: A restart of your Minecraft client will be required for some of the configuration changes to take effect.
-presets.dlg.RestartRequired.tooltip=Restart may be required
+presets.dlg.ApplyWarning=应用此预设将覆盖现有的设置。是否继续？
+presets.dlg.SaveWarning=你确定要覆盖保存这个预设吗？
+presets.dlg.DeleteWarning=你确定要删除此预设吗？
+presets.dlg.RestartRequired=注意：部分设置需要重启Minecraft以应用。
+presets.dlg.RestartRequired.tooltip=可能需要重启！
