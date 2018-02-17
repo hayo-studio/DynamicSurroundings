@@ -36,16 +36,17 @@ import org.blockartistry.DynSurround.proxy.Proxy;
 import org.blockartistry.lib.ForgeUtils;
 import org.blockartistry.lib.Localization;
 import org.blockartistry.lib.VersionChecker;
+import org.blockartistry.lib.VersionHelper;
 import org.blockartistry.lib.logging.ModLog;
 
 import net.minecraft.client.Minecraft;
-import net.minecraft.profiler.Profiler;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.common.config.Configuration;
 import net.minecraftforge.fml.common.Mod.EventHandler;
 import net.minecraftforge.fml.common.Mod.Instance;
 import net.minecraftforge.fml.common.ModMetadata;
 import net.minecraftforge.fml.common.SidedProxy;
+import net.minecraftforge.fml.common.event.FMLFingerprintViolationEvent;
 import net.minecraftforge.fml.common.event.FMLInitializationEvent;
 import net.minecraftforge.fml.common.event.FMLLoadCompleteEvent;
 import net.minecraftforge.fml.common.event.FMLPostInitializationEvent;
@@ -63,16 +64,20 @@ import net.minecraftforge.fml.common.network.NetworkCheckHandler;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
-@net.minecraftforge.fml.common.Mod(modid = DSurround.MOD_ID, useMetadata = true, dependencies = DSurround.DEPENDENCIES, version = DSurround.VERSION, guiFactory = DSurround.GUI_FACTORY, updateJSON = DSurround.UPDATE_URL)
+@net.minecraftforge.fml.common.Mod(modid = DSurround.MOD_ID, useMetadata = true, dependencies = DSurround.DEPENDENCIES, version = DSurround.VERSION, acceptedMinecraftVersions = DSurround.MINECRAFT_VERSIONS, guiFactory = DSurround.GUI_FACTORY, updateJSON = DSurround.UPDATE_URL, certificateFingerprint = DSurround.FINGERPRINT)
 public class DSurround {
 	public static final String MOD_ID = "dsurround";
 	public static final String API_ID = MOD_ID + "API";
 	public static final String RESOURCE_ID = "dsurround";
 	public static final String MOD_NAME = "Dynamic Surroundings";
 	public static final String VERSION = "@VERSION@";
-	public static final String DEPENDENCIES = "before:presets; after:galacticraftcore";
+	public static final String MINECRAFT_VERSIONS = "[1.12,1.12.1]";
+	public static final String DEPENDENCIES = "after:galacticraftcore; after:ambientsounds";
 	public static final String GUI_FACTORY = "org.blockartistry.DynSurround.client.gui.ConfigGuiFactory";
 	public static final String UPDATE_URL = "https://raw.githubusercontent.com/OreCruncher/DynamicSurroundings/master/version.json";
+	public static final String FINGERPRINT = "7a2128d395ad96ceb9d9030fbd41d035b435753a";
+	
+	public static final String SERVER_VERSION = "3.4.9.0";
 
 	@Instance(MOD_ID)
 	protected static DSurround instance;
@@ -108,15 +113,14 @@ public class DSurround {
 	public static File dataDirectory() {
 		return dataDirectory;
 	}
-	
+
 	public static boolean isInstalledOnServer() {
 		return installedOnServer;
 	}
 
-	@Nonnull
 	@SideOnly(Side.CLIENT)
-	public static Profiler getProfiler() {
-		return Minecraft.getMinecraft().mcProfiler;
+	public static boolean routePacketToServer() {
+		return DSurround.isInstalledOnServer() && !Minecraft.getMinecraft().isIntegratedServerRunning();
 	}
 
 	public DSurround() {
@@ -137,8 +141,8 @@ public class DSurround {
 		ModOptions.load(config);
 		config.save();
 
-		logger.setDebug(ModOptions.enableDebugLogging);
-		logger.setTraceMask(ModOptions.debugFlagMask);
+		logger.setDebug(ModOptions.logging.enableDebugLogging);
+		logger.setTraceMask(ModOptions.logging.debugFlagMask);
 
 		proxy.preInit(event);
 	}
@@ -160,7 +164,8 @@ public class DSurround {
 				data.name = Localization.format("dsurround.metadata.Name");
 				data.credits = Localization.format("dsurround.metadata.Credits");
 				data.description = Localization.format("dsurround.metadata.Description");
-				data.authorList = Arrays.asList(StringUtils.split(Localization.format("dsurround.metadata.Authors"), ','));
+				data.authorList = Arrays
+						.asList(StringUtils.split(Localization.format("dsurround.metadata.Authors"), ','));
 			}
 		}
 	}
@@ -170,18 +175,34 @@ public class DSurround {
 		proxy.loadCompleted(event);
 	}
 
+	@EventHandler
+	public void onFingerprintViolation(@Nonnull final FMLFingerprintViolationEvent event) {
+		log().warn("Invalid fingerprint detected!");
+	}
+
 	////////////////////////
 	//
 	// Client state events
 	//
 	////////////////////////
-	
+
 	@NetworkCheckHandler
 	public boolean checkModLists(@Nonnull final Map<String, String> modList, @Nonnull final Side side) {
+		final String modVersion = modList.get(DSurround.MOD_ID);
+
 		if (side == Side.SERVER) {
-			installedOnServer = modList.containsKey(DSurround.MOD_ID);
+			installedOnServer = !StringUtils.isEmpty(modVersion);
+			if (installedOnServer) {
+				log().info("%s version %s is installed on the server", MOD_NAME, modVersion);
+				if (VersionHelper.compareVersions(modVersion, SERVER_VERSION) < 0) {
+					log().info("For the best experience the server should be running at least version %s", SERVER_VERSION);
+				}
+			}
 		}
 
+		// Fall through. The mod is not installed on the server
+		// meaning it is a vanilla box or a forge server without
+		// the mod.
 		return true;
 	}
 
@@ -198,8 +219,8 @@ public class DSurround {
 
 	@SubscribeEvent
 	public void playerLogin(final PlayerLoggedInEvent event) {
-		if (ModOptions.enableVersionChecking)
-			new VersionChecker(DSurround.MOD_ID, "msg.NewVersion.dsurround").playerLogin(event);
+		if (ModOptions.logging.enableVersionChecking)
+			new VersionChecker(DSurround.MOD_ID, "dsurround.msg.NewVersion.dsurround").playerLogin(event);
 	}
 
 	////////////////////////

@@ -35,9 +35,6 @@ import org.blockartistry.DynSurround.network.Network;
 import org.blockartistry.DynSurround.network.PacketThunder;
 import org.blockartistry.DynSurround.network.PacketWeatherUpdate;
 import org.blockartistry.DynSurround.registry.DimensionInfo;
-import org.blockartistry.DynSurround.registry.DimensionRegistry;
-import org.blockartistry.DynSurround.registry.RegistryManager;
-import org.blockartistry.DynSurround.registry.RegistryManager.RegistryType;
 import org.blockartistry.lib.PlayerUtils;
 import org.blockartistry.lib.random.XorShiftRandom;
 
@@ -58,19 +55,19 @@ public class WeatherGenerator {
 		this.world = world;
 		this.info = world.getWorldInfo();
 		this.data = DimensionEffectData.get(world);
-		this.dimension = RegistryManager.<DimensionRegistry>get(RegistryType.DIMENSION).getData(world);
+		this.dimension = ServerRegistry.DIMENSION.getData(world);
 	}
 
 	protected int nextRainInterval(final boolean isRaining) {
-		final int base = isRaining ? ModOptions.rainActiveTimeConst : ModOptions.rainInactiveTimeConst;
+		final int base = isRaining ? ModOptions.rain.rainActiveTimeConst : ModOptions.rain.rainInactiveTimeConst;
 		return base + this.RANDOM
-				.nextInt(isRaining ? ModOptions.rainActiveTimeVariable : ModOptions.rainInactiveTimeVariable);
+				.nextInt(isRaining ? ModOptions.rain.rainActiveTimeVariable : ModOptions.rain.rainInactiveTimeVariable);
 	}
 
 	protected int nextThunderInterval(final boolean isThundering) {
-		final int base = isThundering ? ModOptions.stormActiveTimeConst : ModOptions.stormInactiveTimeConst;
+		final int base = isThundering ? ModOptions.rain.stormActiveTimeConst : ModOptions.rain.stormInactiveTimeConst;
 		return base + this.RANDOM
-				.nextInt(isThundering ? ModOptions.stormActiveTimeVariable : ModOptions.stormInactiveTimeVariable);
+				.nextInt(isThundering ? ModOptions.rain.stormActiveTimeVariable : ModOptions.rain.stormInactiveTimeVariable);
 	}
 
 	protected int nextThunderEvent(final float rainIntensity) {
@@ -141,14 +138,14 @@ public class WeatherGenerator {
 	protected void doAmbientThunder() {
 
 		// If not enabled, return
-		if (!ModOptions.allowBackgroundThunder)
+		if (!ModOptions.rain.allowBackgroundThunder)
 			return;
 
 		// Gather the intensity for rain
 		final float intensity = this.data.getCurrentRainIntensity();
 
 		// If it is thundering and the intensity exceeds our threshold...
-		if (this.info.isThundering() && intensity >= ModOptions.stormThunderThreshold) {
+		if (this.info.isThundering() && intensity >= ModOptions.rain.stormThunderThreshold) {
 			int time = this.data.getThunderTimer() - 1;
 			if (time <= 0) {
 				// If it is 0 we just counted down to this. If it were

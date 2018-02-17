@@ -1,3 +1,328 @@
+###DynamicSurroundings-1.12.2-3.4.9.3
+**What's New**
+* Ability to have footprints scaled.  Villager children now have smaller prints and the spacing is more appropriate to the model size.
+* Skeletons now have footprints.  Scaled down in size to match their spindly legs.
+
+**Fixes**
+* Several crashes related to null references
+* Fixed slow memory leak related to changing dimensions (unregister event handler)
+* Auroras should be more compatible with shaders.  I tested with SEUS Renewed and they show up.  Yay!  If you still run into rendering issues try turning off custom sky.
+* Fixed problem where tools like axes and picks would not make item swap or swing sounds.
+
+**Changes**
+* It's been reported that footsteps stop appearing but the step sounds still play.  I am not able to repro the problem, but I have a suspicion.  I made some code changes based on my suspicion.  As a side effect the process is more streamlined. :)
+* Improved aurora rendering performance quite a bit for both classic and shader.
+
+###DynamicSurroundings-1.12.2-3.4.9.2
+**What's New**
+* Dynamic Trees support.  Added a mod profile so Dynamic Surroundings doesn't need to infer footstep behavior.
+
+**Fixes**
+* Reverted code change that caused incompatibility with older versions of Forge.  Dynamic Surroundings is compatible back to the latest released version 14.23.1.2555.
+
+###DynamicSurroundings-1.12.2-3.4.9.1
+**What's New**
+* Morning fog.  It starts setting in about 3AM and peaks at about sunrise.  It burns off just after daytime.  There is an option to disable.
+* Bedrock fog.  Essentially the classic void fog.  It occurs near at the bedrock layers.  There is an option to disable. I did not add void particles!
+* More fog when raining.  The higher intensity the rain the more fog there is.  There is an option to disable.
+* Added a master control setting to enable/disable fog processing.  Because of how Minecraft/Forge handles fog processing it is possible to run into conflicts with other mods.  This option will allow you to turn off fog processing by Dynamic Surroundings.
+* Replaced the Minecraft bow loose sound with a new one.
+* ASM is used to disable an arrows particle trail on critical.  I mean, almost every bow shot is a critical and those particles get in my way. :)  There is an option under ASM Options to disable this patching.  This does not affect potion arrows particle swirls!
+* Added two intensity levels for rain.  This will allow for a better transition between rain/snow/dust textures when the weather fades in and out.
+* Damage popoffs are now 100% client side.  As a result some of the behavior has changed:
+    * Based on the entities health change from the last tick regardless of reason.
+    * Critical is based on a health change that exceeds a percentage of max health.
+
+**Fixes**
+* Minecraft thunder sound is again properly replaced.
+
+**Changes**
+* Reworked fog system.  Works much better.
+* Compatibility with BoP biomes where fog is concerned.
+* Eliminated biome and desert fog factors.  They were seldom used and would cause challenges with BoP fog compatibility changes.
+* Footstep and jump sounds, as well as footprint generation, will not occur if player is sneaking.
+* Adjust display position of damage popoffs so they are more visible.
+* Increased range of area biome scanner by quite a bit.  Result is better sound blending at biome transition points.  For example, when standing in a river biome in the middle of the forest you will get both river and forest biome sounds.
+* Enhanced F3 debug display when DS debug tracing is enabled.  Most notable is the addition of timing values for the various processes that take place within DS.
+
+###DynamicSurroundings-1.12.2-3.4.9.0
+**What's New**
+* Reworked the internal effect handling to move most of it 100% client side (craft sound requires server for sound routing):
+    * Footstep sounds and prints - These effects will play for other players without requiring server support.  As a bonus, Villagers, Illagers, Witches, and Zombies leave footprints and have the same footstep sounds.
+    * Item swing sound - As with footsteps/prints these will play when other players swing without the need of server support.  As a bonus all other living entities that are not animals can produce swing sounds if an appropriate item is being wielded.  (Check out Zombies with swords.)
+    * Bow use sound - same as item swing.  And as a bonus there is a sound effect when using a shield to block.  (Check out the skellies with their bows.)
+    * Entity chat - server side support is no longer required for it to work for you.  Note that with this change the timing and message will vary between players.  For those that do not know what this is this feature is turned off by default.  Try turning it on and visit Villagers. :)
+    * Player equip sounds for players nearby will be heard.  No server side support required.  Does not extend to other mobs.
+* Added a client side "weather simulator".  If using Dynamic Surroundings on a server that does not have the mod installed, the client will generate varying rain intensity and produce background thunder during thunder storms.  The logic will obey the settings in the configuration file.  As there is no persistence (i.e. saved state) the /ds commands will not work with the simulator.
+* Frosted breath effect extended to Illagers and Witches.
+* For pack developers there are two new acoustics, both a variation on "wood":
+    * "planks" - on a step there is a chance a floorsqueak can occur.  If you don't want this squeak use "wood".
+    * "log" - has a lower pitch than the "wood" acoustic.  Intended to give the feeling of weight.
+* For pack developers the inspection tool and behavior changed:
+    * If debug is set and you are holding a carrot on a stick viewing blocks will give DS information about the block.  You no longer need to be in creative mode or carry a stack of nether stars.
+    * Added Entity inspection so if you are looking at an entity it will list the various affects that DS is tracking on the Entity.
+
+**Fixes**
+* Improved OptiFine compatibility with Light Level HUD changes.
+* Multiplayer sound routing fixed - got busted along the way somewhere.
+* Footprints should show correctly on blocks like Soul Sand and BoP Mud.
+* Frost breath effect will scale appropriately for Villager children.
+* Fixed issue where footprint would not show on "primitive" blocks (one that has no predefined profile)
+* Fixed issue where sounds would play too low for "primitive" blocks
+
+**Changes**
+* Added a Preset! called "Reveal your inner Pony!".  This will configure the footprint feature for being a quadruped and have the hoof print style.
+* Floorsqueak and Jump sound effects are now a footstep acoustics.  Volume has been muted a bit.
+* Walking on a log will give a lower pitched sound than regular wood planks.
+* Addressed a pile of technical debt that accumulated.  These changes should not affect gameplay but keep an eye out for unusual things.
+
+
+###DynamicSurroundings-1.12.2-3.4.8.5
+**What's New**
+* Two new water ripple textures to select courtesy of yahlirs4!  In addition to the classic lighter colored round ripple there is a darker round ripple as well as a square (for those that like the blockiness theme).  You can find the option to change the style under "Rain Options".
+* When standing in a cold area breath particles will be emitted from a players/villagers/illagers mouth.  Cold is when the biome temperature at a given block is < 0.2.  You can enable/disable the feature using the "Player Options".
+* If your computer supports shaders auroras will be colored using a shader program.  An option to turn this off is under the "Aurora Options".
+* Rain fall, rain splash, and rain sound will be suppressed when a Random Things Rain Shield is nearby.  Prior Random Things and Dynamic Surroundings conflicted thus the rain shield didn't operate as intended.  Note that birds will not magically start singing because it is still really raining.
+
+**Fixes**
+* Unfade a fading aurora if conditions permit.  This condition is frequent if bouncing between biomes where one supports auroras and the other doesn't.
+* Changed when auroras render to the display.  Auroras should display with Astral Sorcery, Stellar Sky, Extended Days, and Weather Storms & Tornadoes.
+* Put in some haxx to have footstep sounds play with Sound Physics.
+* Finished up Albedo compat for particles.  Particles should render correctly without appearing washed out.
+* Footprints should show on Gravel Ores blocks.
+
+**Changes**
+* Built against Forge 1.12.2-14.23.1.2600
+* Adjust aurora alpha so they are more visible (brighter?)
+* Improved performance of the light level HUD (use textures instead of draw string).
+* Removed light level HUD styles. HUD will only render light level on the block surface with rotation.
+* Updated mod support:
+    * NetherEx (thanks Sunconure11!)
+    * Plants 2
+
+###DynamicSurroundings-1.12.2-3.4.8.4
+**What's New**
+* Based on feedback brought the auroras back as hovering bands rather than rendered at view range.  There are no configuration options available currently.  Working on further changes and those changes affect what I do.
+* Water splash/ripple effects change color based on the biomes water color.
+
+**Fixes**
+* Fixed "rapid fire sounds" when playing on a server with other players present
+
+###DynamicSurroundings-1.12.2-3.4.8.3
+**Fixes**
+* Potion HUD would occasionally cause a crash
+* Client crash activating light level HUD
+* Sound engine startup problems because Forge could not find a static event handler
+* Footprints will now show up for blocks when player moves through grass, web, etc.
+
+**Changes**
+* Built against Forge 14.23.1.2589
+
+###DynamicSurroundings-1.12.2-3.4.8.2
+**Fixes**
+* Particles should render correctly when Albedo is installed.
+* Handle footprints correctly when snow layered on hard surface or carpet on soft.
+* Footprints will no longer render as "black" on translucent surfaces, such as ice.
+
+**Changes**
+* Internal code refactors and cleanup
+* Allow footprints on packed ice
+* Sandstorm particle texture now tinted correctly by the dust color of the biome.  Means that biomes like BoP Cold Desert will have white "sand" texture rather than yellow.
+
+###DynamicSurroundings-1.12.2-3.4.8.1
+**What's New**
+* Mod support/updates for various mods (thanks again to Sunconure11!)
+    * Plants 2 updates, Simply Tea, Gravel Ores, Soot, Ice and Fire
+
+**Fixes**
+* Open Terrain Generator compatibility changes.  No more crash loops!
+
+###DynamicSurroundings-1.12.2-3.4.8.0
+**What's New**
+* Display the clock hud when player is looking at an item frame that contains a clock.
+* Mod support/updates for various mods (thanks Sunconure11!)
+    * NetherEx, Plants 2, Embers, Defiled Lands, Chococraft 
+    
+**Fixes**
+* Removed all that sound engine restart stuff and replaced with patches to the underlying Minecraft sound engine to avoid the situation all together.  Thanks to CreativeMD and his work on getting to the bottom of things!  This should eliminate a variety of reported problems up through and including:
+    * Sound Engine restart lag
+    * Frequency of the sound engine crashes
+    * Various repeating errors in the client log related to sound muting and sounds not being found
+    * Crashes due to sound engine being yanked out from under other mods (such as IC2) 
+* Twlight Forest sea level not being reported via WorldProvider.  Made an override to set correctly.  Should get biome sounds properly when wandering the surface.  Note that some blocks will not make appropriate sounds (like walking on the larger lily pad).  This support will be added in a future build.
+* Sometimes a sound instance would not play.  When this occurs something like "Error in class 'LibraryLWJGLOpenAL'" would show in the log.  Put in some additional code to make sure the sound information is flushed down into the sound engine.
+* OpenEye: Sometimes the display wasn't created thus causing a crash in background mute processing
+* OpenEye: Sometimes the player reference wasn't initialized when hud processing was performed
+
+**Changes**
+* Built against Forge 1.12.2-14.23.1.2581
+* Reworked internal ASM transforms for better compatibility
+* Refined Battle Music logic to only apply it to entities that such as Mobs, Players, Polar Bears, and Golems.  Excludes passives that can attack such as wolves (but not the skellies they go after).  Goal is to reduce Battle Music fatigue.
+
+**NOTE: If you use Ambient Sounds 2.0 as well as Dynamic Surroundings make sure Ambient Sounds is updated to at least v2.2.1!  If you don't the sound engine patches will not be applied.**
+
+###DynamicSurroundings-1.12.2-3.4.7.2
+**What's New**
+* \[WIP\] Support for [Albedo](https://minecraft.curseforge.com/projects/albedo?gameCategorySlug=mc-mods&projectID=275300) client side graphics library:
+    * Fireflies have a glow effect
+    * Holding a light source will provide light around player entity.  Color and radius of the light effect is dependent on the item held.  Experiment with torches, redstone torches, glowstone blocks, sea lanterns, and nether stars.
+    * Firefly and player light source can be turned on/off using configuration.
+    * Dynamic Surroundings will detect presence of Albedo and activate necessary support logic.
+    * Not compatible with OptiFine since shaders are used.
+* General config option for turning off Dynamic Surroundings chat messages when toggling things like light level HUD, chunk border display, etc.
+
+**Fixes**
+* Footstep/item swap sounds playing L/R of the player when moving, such as strafing. Noticeable when using headphones.
+* Keybindings will now show up with latest versions of Forge for 1.12.x
+* Client NPE/CME when connection rejected because of a mod mismatch on server.
+* Open Terrain Generation compatibility updates for 1.12.x
+
+**Changes**
+* Built against Forge 14.23.0.2486, a Minecraft 1.12.2 version.  Mod should still be compatible with Minecraft 1.12.x.
+* Modified biome sound registry to improve OTG compatibility with 1.12.x Minecraft.
+* Further restrict desert dust effect to biomes with < 0.1 rainfall - should rain in BoP Steppe now.
+
+###DynamicSurroundings-1.12-3.4.7.1
+**What's New**
+* Added built-in profiles for disabling things like Nether weather and biome dust.  Config options are accessible using the Built-in Profiles button from Dynamic Surroundings main configuration page.
+* Sound Option to have the sword equip sound be the tool equip sound.  (This is for those sword enthusiasts that don't like the default metallic ring.)
+* Added a "low res" footprint style (id 6)
+
+**Fixes**
+* Guard against the possibility that a startup sound is not found within the SoundEvent registry.
+* Steam jets will now disappear when water source removed
+
+**Changes**
+* Updated Galacticraft mod support (no more green fog on Mars!)
+
+###DynamicSurroundings-1.12.2-3.4.7.0
+**What's New**
+* Added Red Shouldered Hawk to the raptor sound set.
+* Added bullfrog sound to the lilypad block.  The chance a lily will play the normal frog croak is 3x that of the bullfrog.
+
+**Fixes**
+* Defensive code when recovering sound system to prevent NPE
+* Defensive code when connecting to a remote server with heavy lag where entity capability data arrives before the client entity list is initialized.
+* Fix alpha blending of water ripple for Radon modpack.
+* No more underwater falls in water because of falling blocks during worldgen or when digging out resources. (I hope!)
+
+**Changes**
+* Modified weight of the red tailed hawk sound so it does not play as often as compared to other raptor sounds.
+
+###DynamicSurroundings-1.12-3.4.6.3
+**Fixes**
+* Sounds should no longer cut out soon after starting world.
+
+NOTE: No need to update if you are *not* running Minecraft 1.12.1!
+
+###DynamicSurroundings-1.12-3.4.6.2
+**What's New**
+* Mod support:
+    * Astral Sorcery
+    * Charset
+    * Glass Hearts
+    * Terraqueous
+    
+**Fixes**
+* OpenEye: NPE in getFogColor() - world provider property is null for some reason
+* OpenEye: SoundSystem reference was null for some reason
+* OpenEye: Use blocks creative tab reference in call to getBlockSubtypes()
+* Fixed sound disappearing when editing configuration while attached to a remote server.  This fix also addresses additional late sound registrations when attaching to a remote server.
+
+**Changes**
+* Refreshed support for the following mods:
+    * Ceramics
+    * Forestry
+    * Rustic
+
+###DynamicSurroundings-1.12-3.4.6.1
+**Fixes**
+* Cleanup waterfall splash effect.  Should disappear properly, and small falls no longer sound like the men's room at a pub during happy hour.
+* Register sounds in response to Forge registry event.
+* Fix permissions level for calc command.
+
+**Changes**
+* Built against Forge 14.21.1.2426
+* Improved performance of sound system restart after it crashes.
+
+###DynamicSurroundings-1.12-3.4.6.0
+**What's New**
+* The Dynamic Surroundings JAR is now signed.  This shouldn't affect your game play.
+* Solid square footprint style (5)
+* Support CoFHCore covers (generate footstep sounds based on the cover, not the block)
+
+**Fixes**
+* NPE due to late SoundEvent registration
+* Weather rendering with Tough as Nails should work again
+
+**Changes**
+* Mod profile updates for "out of the box" support:
+    * Added Hatchery, Chickens, Iron Chest, Advanced Generators, Storage Drawers, Simple Generators, Simple Barrels, Ceramics, Cooking for Blockheads, Ender Storage, Ex Nihlio Adscensio, Ex Compressum, Thermal Foundation, Thermal Expansion, Thermal Dynamics, Reliquia, Refined Storage, Tiny Progressions, Solar Flux Reborn, Big Reactors, Blood Magic, RFTools, Quark
+    * Refreshed Minecraft, Biomes O'Plenty, Tinker's Construct, Harvestcraft, Natura, Tough as Nails, Subtratum, Actually Additions, Gravel Ores
+	
+###DynamicSurroundings-1.12-3.4.5.7
+**What's New**
+* Minecraft 1.12 support.  Duh.
+    * It's WIP, so report problems in the [Issue Tracker](https://github.com/OreCruncher/DynamicSurroundings/issues).
+    * Same feature set as the 1.10.x/1.11.2 releases
+* "Built-in" Preset configurations for:
+    * Minecraft/Dynamic Surroundings settings based on computer capability
+    * SkyBlock maps
+    * Turning on entity Emoji's, chat, and player speech bubbles
+* Support for the Gravel Ore Mod by Elucent
+    
+**Fixes**
+* Cap ParticleCollection particle count to reduce lag created because of an excessive number of particles generated due to unusual terrain
+* Sometimes a waterfall sound source didn't want to go away.
+
+###DynamicSurroundings-1.11.2-3.4.5.6
+**Fixes**
+* Array out of bounds exception processing waterfall column
+
+###DynamicSurroundings-1.11.2-3.4.5.5
+**What's New**
+* Russian (ru_RU) translations for Presets!/Dynamic Surroundings (thanks Xottab-DUTY!)
+* Deserts have a wind style background sound
+* Support for Simple Corn
+* Savanna has daytime and nighttime biome sounds
+* Raptor (bald eagle/red tailed hawk) spot sounds
+* Config file options to turn off certain features
+    * Used by modpack authors to control player experience
+    * Applies to Light Level, Compass/Clock, and Chunk Fencing HUDs
+    * When turned off feature will not be available in game
+    * Config options for said features will also be suppressed from the config GUI
+    * Keybindings for features are disabled
+* Configuration options for specifying startup sound list
+    * To prevent sound from playing remove all entries from config list
+
+**Fixes**
+* No more "hanging chad" footprints when walking off the edge of a block onto tall grass plant
+* Tooltip no longer blocks the volume slider control in the Individual Sound Config GUI
+* Added missing Tinker's Shovel and Scythe sounds
+
+**Changes**
+* Sacred Springs biome from BoP have forest like sounds rather than jungle
+* AbyssalCraft Darklands biome should not have dust
+* Changed village anvil to be lower pitch and not as frequent
+* Square and hoof footprint textures are darker and alpha processing changed to make the prints less stark
+* Limit village sounds to Overworld
+* Support new Chisel API (facades)
+* Improved waterfall sounds; multiple different sounds based on the strength of the fall
+
+###DynamicSurroundings-1.11.2-3.4.5.4
+**Fixes**
+* Light level hud should now show correct values
+* Mod should now load for Minecraft version 1.11
+
+**Changes**
+* Don't spam sound engine restart needed if auto-restart is not enabled and sound stream thread dies
+
+###DynamicSurroundings-1.11.2-3.4.5.3
+**Changes**
+* Improved area block scan/processing efficiency
+* Optimized footstep sound processing
+* Use ASM to hook Minecraft sound stream loading to improve responsiveness and reduce stream errors; can be turned off in config if needed
+
 ###DynamicSurroundings-1.11.2-3.4.5.2
 **Fixes**
 * Changed volume scales using the volume dialog weren't saved in the config file (weren't sticky)

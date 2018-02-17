@@ -34,26 +34,29 @@ import javax.annotation.Nullable;
 import org.apache.commons.lang3.StringUtils;
 import org.blockartistry.DynSurround.DSurround;
 import org.blockartistry.DynSurround.api.effects.BlockEffectType;
+import org.blockartistry.DynSurround.client.ClientRegistry;
 import org.blockartistry.DynSurround.client.fx.BlockEffect;
 import org.blockartistry.DynSurround.client.sound.SoundEffect;
 import org.blockartistry.DynSurround.data.xface.BlockConfig;
 import org.blockartistry.DynSurround.data.xface.EffectConfig;
+import org.blockartistry.DynSurround.data.xface.ModConfigurationFile;
 import org.blockartistry.DynSurround.data.xface.SoundConfig;
 import org.blockartistry.DynSurround.data.xface.SoundType;
 import org.blockartistry.DynSurround.registry.BlockInfo.BlockInfoMutable;
-import org.blockartistry.DynSurround.registry.RegistryManager.RegistryType;
 import com.google.common.collect.ImmutableMap;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.init.Blocks;
 import net.minecraft.util.SoundCategory;
 import net.minecraftforge.fml.relauncher.Side;
+import net.minecraftforge.fml.relauncher.SideOnly;
 
+@SideOnly(Side.CLIENT)
 public final class BlockRegistry extends Registry {
 
 	private static final BlockProfile NO_PROFILE = BlockProfile
 			.createProfile(new BlockInfo(Blocks.AIR.getDefaultState())).setChance(0).setStepChance(0);
 
-	BlockRegistry(@Nonnull final Side side) {
+	public BlockRegistry(@Nonnull final Side side) {
 		super(side);
 	}
 
@@ -63,6 +66,12 @@ public final class BlockRegistry extends Registry {
 		this.cache = new IdentityHashMap<IBlockState, BlockProfile>();
 	}
 
+	@Override
+	public void configure(@Nonnull final ModConfigurationFile cfg) {
+		for (final BlockConfig block : cfg.blocks)
+			this.register(block);
+	}
+	
 	@Override
 	public void initComplete() {
 		this.registry = ImmutableMap.copyOf(this.registry);
@@ -148,7 +157,7 @@ public final class BlockRegistry extends Registry {
 		if (entry.blocks.isEmpty())
 			return;
 
-		final SoundRegistry soundRegistry = RegistryManager.get(RegistryType.SOUND);
+		final SoundRegistry soundRegistry = ClientRegistry.SOUND;
 
 		for (final String blockName : entry.blocks) {
 			final BlockInfo blockInfo = BlockInfo.create(blockName);

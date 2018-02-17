@@ -28,8 +28,10 @@ import org.blockartistry.DynSurround.client.fx.ParticleCollections;
 import org.blockartistry.DynSurround.client.fx.WaterSplashJetEffect;
 import org.blockartistry.DynSurround.client.fx.particle.mote.IParticleMote;
 import org.blockartistry.DynSurround.client.sound.PositionedEmitter;
+import org.blockartistry.DynSurround.client.sound.SoundEffect;
 import org.blockartistry.DynSurround.client.sound.Sounds;
 import org.blockartistry.lib.WorldUtils;
+import org.blockartistry.lib.math.MathStuff;
 
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
@@ -39,32 +41,47 @@ import net.minecraftforge.fml.relauncher.SideOnly;
 @SideOnly(Side.CLIENT)
 public class ParticleWaterSplash extends ParticleJet {
 
+	private static final SoundEffect[] fallSounds = new SoundEffect[11];
+	static {
+		fallSounds[0] = Sounds.WATERFALL0;
+		fallSounds[1] = Sounds.WATERFALL0;
+		fallSounds[2] = Sounds.WATERFALL1;
+		fallSounds[3] = Sounds.WATERFALL1;
+		fallSounds[4] = Sounds.WATERFALL2;
+		fallSounds[5] = Sounds.WATERFALL3;
+		fallSounds[6] = Sounds.WATERFALL3;
+		fallSounds[7] = Sounds.WATERFALL4;
+		fallSounds[8] = Sounds.WATERFALL4;
+		fallSounds[9] = Sounds.WATERFALL5;
+		fallSounds[10] = Sounds.WATERFALL5;
+	}
+
 	private static final BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
 
+	private final BlockPos location;
 	private PositionedEmitter emitter;
 
-	public ParticleWaterSplash(final int strength, final World world, final double x, final double y, final double z) {
+	public ParticleWaterSplash(final int strength, final World world, final BlockPos loc, final double x, final double y, final double z) {
 		super(strength, world, x, y, z);
+		this.location = loc.toImmutable();
 	}
 
 	@Override
 	public boolean shouldDie() {
-		return !WaterSplashJetEffect.isValidSpawnBlock(WorldUtils.getDefaultBlockStateProvider(), this.getPos());
+		return !WaterSplashJetEffect.isValidSpawnBlock(WorldUtils.getDefaultBlockStateProvider(), this.location);
 	}
 
 	private boolean setupSound() {
-		return this.emitter == null && RANDOM.nextInt(4) == 0;
+		return this.isAlive() && this.emitter == null && RANDOM.nextInt(4) == 0;
 	}
 
 	@Override
 	protected void soundUpdate() {
 		if (setupSound()) {
 			pos.setPos(this.posX, this.posY, this.posZ);
-			this.emitter = new PositionedEmitter(Sounds.WATERFALL, pos);
-			final float volume = this.jetStrength / 10.0F;
-			final float pitch = 1.0F - 0.7F * (volume / 3.0F) + (RANDOM.nextFloat() - RANDOM.nextFloat()) * 0.2F;
-			this.emitter.setVolume(volume);
-			this.emitter.setPitch(pitch);
+			final int idx = MathStuff.clamp(this.jetStrength, 0, fallSounds.length - 1);
+			this.emitter = new PositionedEmitter(fallSounds[idx], pos);
+			this.emitter.setPitch(1F + 0.2F * (RANDOM.nextFloat() - RANDOM.nextFloat()));
 		}
 
 		if (this.emitter != null)
@@ -91,12 +108,13 @@ public class ParticleWaterSplash extends ParticleJet {
 			if (WorldUtils.isSolidBlock(this.world, pos.setPos(this.posX + xOffset, this.posY, this.posZ + zOffset)))
 				continue;
 
-			final double motionX = xOffset * (this.jetStrength / 40.0D);
+			final double motionX = xOffset * (this.jetStrength / 25.0D);
 			final double motionY = 0.1D + RANDOM.nextDouble() * this.jetStrength / 20.0D;
-			final double motionZ = zOffset * (this.jetStrength / 40.D);
+			final double motionZ = zOffset * (this.jetStrength / 25.D);
 			final IParticleMote particle = ParticleCollections.addWaterSpray(this.world, this.posX + xOffset,
 					(double) (this.posY), this.posZ + zOffset, motionX, motionY, motionZ);
-			addParticle(particle);
+			if (particle != null)
+				addParticle(particle);
 		}
 	}
 

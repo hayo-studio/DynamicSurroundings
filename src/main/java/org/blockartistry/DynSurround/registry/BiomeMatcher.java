@@ -23,53 +23,36 @@
 
 package org.blockartistry.DynSurround.registry;
 
-import java.lang.reflect.Field;
-import java.util.Map;
-import java.util.Map.Entry;
+import java.util.Set;
 
 import javax.annotation.Nonnull;
 
 import org.blockartistry.DynSurround.data.xface.BiomeConfig;
-import org.blockartistry.DynSurround.registry.RegistryManager.RegistryType;
-import org.blockartistry.lib.script.BooleanValue;
-import org.blockartistry.lib.script.Expression;
-import org.blockartistry.lib.script.Function;
-import org.blockartistry.lib.script.StringValue;
-import org.blockartistry.lib.script.Variant;
+import org.blockartistry.lib.BiomeUtils;
+import org.blockartistry.lib.expression.BooleanValue;
+import org.blockartistry.lib.expression.Expression;
+import org.blockartistry.lib.expression.Function;
+import org.blockartistry.lib.expression.NumberValue;
+import org.blockartistry.lib.expression.StringValue;
+import org.blockartistry.lib.expression.Variant;
 
 import com.google.common.primitives.Booleans;
 
 import net.minecraft.util.ResourceLocation;
 import net.minecraft.world.biome.Biome;
 import net.minecraftforge.common.BiomeDictionary;
-import net.minecraftforge.common.BiomeDictionary.Type;
-import net.minecraftforge.fml.relauncher.ReflectionHelper;
+import net.minecraftforge.fml.relauncher.Side;
+import net.minecraftforge.fml.relauncher.SideOnly;
 
+@SideOnly(Side.CLIENT)
 public abstract class BiomeMatcher {
 
 	public abstract boolean match(@Nonnull final BiomeInfo info);
 
 	public static BiomeMatcher getMatcher(@Nonnull final BiomeConfig cfg) {
-		if (cfg.conditions != null)
-			return new ConditionsImpl(cfg);
-		return new LegacyImpl(RegistryManager.<BiomeRegistry>get(RegistryType.BIOME), cfg);
-	}
-
-	private static class LegacyImpl extends BiomeMatcher {
-
-		protected final BiomeRegistry reg;
-		protected final BiomeConfig config;
-
-		public LegacyImpl(@Nonnull final BiomeRegistry reg, @Nonnull final BiomeConfig cfg) {
-			this.reg = reg;
-			this.config = cfg;
-		}
-
-		@Override
-		public boolean match(@Nonnull final BiomeInfo info) {
-			return this.reg.isBiomeMatch(this.config, info);
-		}
-
+		if (cfg.conditions == null)
+			cfg.conditions = "";
+		return new ConditionsImpl(cfg);
 	}
 
 	private static class ConditionsImpl extends BiomeMatcher {
@@ -145,6 +128,92 @@ public abstract class BiomeMatcher {
 
 			});
 
+			this.exp.addVariable(new Variant("biome.id") {
+
+				@Override
+				public int compareTo(Variant o) {
+					return this.asString().compareTo(o.asString());
+				}
+
+				@Override
+				public float asNumber() {
+					return 0;
+				}
+
+				@Override
+				public String asString() {
+					return ConditionsImpl.this.current.getKey().toString();
+				}
+
+				@Override
+				public boolean asBoolean() {
+					return false;
+				}
+
+				@Override
+				public Variant add(Variant term) {
+					return new StringValue(this.asString().concat(term.asString()));
+				}
+
+			});
+
+			this.exp.addVariable(new Variant("biome.modid") {
+
+				@Override
+				public int compareTo(Variant o) {
+					return this.asString().compareTo(o.asString());
+				}
+
+				@Override
+				public float asNumber() {
+					return 0;
+				}
+
+				@Override
+				public String asString() {
+					return ConditionsImpl.this.current.getKey().getResourceDomain();
+				}
+
+				@Override
+				public boolean asBoolean() {
+					return false;
+				}
+
+				@Override
+				public Variant add(Variant term) {
+					return new StringValue(this.asString().concat(term.asString()));
+				}
+
+			});
+
+			this.exp.addVariable(new Variant("biome.rainfall") {
+				@Override
+				public int compareTo(Variant o) {
+					return Float.compare(this.asNumber(), o.asNumber());
+				}
+
+				@Override
+				public float asNumber() {
+					return ConditionsImpl.this.current.getRainfall();
+				}
+
+				@Override
+				public String asString() {
+					return Float.toString(this.asNumber());
+				}
+
+				@Override
+				public boolean asBoolean() {
+					return this.asNumber() != 0F;
+				}
+
+				@Override
+				public Variant add(Variant term) {
+					return new NumberValue(this.asNumber() + term.asNumber());
+				}
+
+			});
+
 			// Fake biome
 			this.exp.addVariable(new Variant("biome.isFake") {
 
@@ -176,18 +245,9 @@ public abstract class BiomeMatcher {
 			});
 
 			// Scan the BiomeDictionary adding the the types
-			try {
-				final Field accessor = ReflectionHelper.findField(BiomeDictionary.Type.class, "byName");
-				if (accessor != null) {
-					@SuppressWarnings("unchecked")
-					final Map<String, BiomeDictionary.Type> stuff = (Map<String, BiomeDictionary.Type>) accessor
-							.get(null);
-					for (final Entry<String, Type> e : stuff.entrySet())
-						this.exp.addVariable(new BiomeTypeVariable(e.getValue()));
-				}
-			} catch (final Throwable t) {
-				throw new RuntimeException("Cannot locate BiomeDictionary.Type table!");
-			}
+			final Set<BiomeDictionary.Type> stuff = BiomeUtils.getBiomeTypes();
+			for (final BiomeDictionary.Type t : stuff)
+				this.exp.addVariable(new BiomeTypeVariable(t));
 
 			// Add the biomes in the biome list
 			for (final ResourceLocation b : Biome.REGISTRY.getKeys())

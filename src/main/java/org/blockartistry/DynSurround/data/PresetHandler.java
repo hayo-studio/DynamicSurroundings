@@ -30,7 +30,7 @@ import javax.annotation.Nonnull;
 
 import org.blockartistry.DynSurround.DSurround;
 import org.blockartistry.DynSurround.ModOptions;
-import org.blockartistry.DynSurround.registry.RegistryManager;
+import org.blockartistry.DynSurround.event.ReloadEvent;
 import org.blockartistry.Presets.api.ConfigurationHelper;
 import org.blockartistry.Presets.api.PresetData;
 import org.blockartistry.Presets.api.ConfigurationHelper.IConfigFilter;
@@ -39,14 +39,15 @@ import org.blockartistry.lib.ConfigProcessor;
 
 import com.google.common.collect.Sets;
 
+import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.common.config.ConfigCategory;
 import net.minecraftforge.common.config.Property;
-import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.Optional;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.relauncher.Side;
+import net.minecraftforge.fml.relauncher.SideOnly;
 
-@Mod.EventBusSubscriber(value = Side.CLIENT, modid = DSurround.MOD_ID)
+@SideOnly(Side.CLIENT)
 public class PresetHandler {
 
 	private static final Set<String> categoriesToIgnore = Sets.newHashSet();
@@ -85,7 +86,7 @@ public class PresetHandler {
 			helper.load(DSurround.config(), FILTER);
 			DSurround.config().save();
 			ConfigProcessor.process(DSurround.config(), ModOptions.class);
-			RegistryManager.reloadResources();
+			MinecraftForge.EVENT_BUS.post(new ReloadEvent.Configuration());
 		}
 	}
 }

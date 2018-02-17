@@ -21,9 +21,14 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+
 package org.blockartistry.DynSurround.client.fx.particle.mote;
 
 import javax.annotation.Nonnull;
+
+import org.blockartistry.DynSurround.DSurround;
+import org.blockartistry.DynSurround.ModOptions;
+import org.blockartistry.lib.gfx.OpenGlUtil;
 
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.util.ResourceLocation;
@@ -34,19 +39,55 @@ import net.minecraftforge.fml.relauncher.SideOnly;
 @SideOnly(Side.CLIENT)
 public class ParticleCollectionRipples extends ParticleCollection {
 
+	public static enum Style {
+
+		// Original texture
+		ORIGINAL("textures/particles/ripple.png"),
+		
+		// Circle, a bit darker
+		CIRCLE("textures/particles/ripple1.png"),
+
+		// Square that matches Minecraft's blockiness
+		SQUARE("textures/particles/ripple2.png");
+
+		private final ResourceLocation resource;
+
+		private Style(@Nonnull final String texture) {
+			this.resource = new ResourceLocation(DSurround.RESOURCE_ID, texture);
+		}
+
+		@Nonnull
+		public ResourceLocation getTexture() {
+			return this.resource;
+		}
+
+		@Nonnull
+		public static Style getStyle(final int v) {
+			if (v >= values().length)
+				return CIRCLE;
+			return values()[v];
+		}
+	}
+
 	public ParticleCollectionRipples(@Nonnull final World world, @Nonnull final ResourceLocation tex) {
 		super(world, tex);
 	}
 
-	@Override
-	protected void preRender() {
-		GlStateManager.enableBlend();
-		GlStateManager.depthMask(false);
+	protected void bindTexture(@Nonnull final ResourceLocation resource) {
+		final ResourceLocation res = Style.getStyle(ModOptions.rain.rainRippleStyle).getTexture();
+		super.bindTexture(res);
 	}
 
 	@Override
-	protected void postRender() {
-		GlStateManager.disableBlend();
+	protected void preRender() {
+		super.preRender();
+		GlStateManager.enableDepth();
+		OpenGlUtil.setStandardBlend();
+		GlStateManager.depthMask(false);
 	}
+
+	public static final ICollectionFactory FACTORY = (world, texture) -> {
+		return new ParticleCollectionRipples(world, texture);
+	};
 
 }

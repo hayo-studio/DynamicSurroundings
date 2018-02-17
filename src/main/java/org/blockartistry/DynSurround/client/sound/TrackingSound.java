@@ -26,9 +26,10 @@ package org.blockartistry.DynSurround.client.sound;
 import javax.annotation.Nonnull;
 
 import org.blockartistry.DynSurround.client.handlers.EnvironStateHandler.EnvironState;
+import org.blockartistry.lib.sound.BasicSound;
 
 import net.minecraft.client.audio.ITickableSound;
-import net.minecraft.entity.EntityLivingBase;
+import net.minecraft.entity.Entity;
 import net.minecraft.util.math.AxisAlignedBB;
 import net.minecraftforge.fml.relauncher.SideOnly;
 import net.minecraftforge.fml.relauncher.Side;
@@ -39,7 +40,7 @@ public class TrackingSound extends BasicSound<TrackingSound> implements ITickabl
 	private static final float DONE_VOLUME_THRESHOLD = 0.00001F;
 	private static final float FADE_AMOUNT = 0.02F;
 	
-	private final EntityLivingBase attachedTo;
+	private final Entity attachedTo;
 	private final SoundEffect sound;
 	
 	private boolean isFading;
@@ -48,7 +49,7 @@ public class TrackingSound extends BasicSound<TrackingSound> implements ITickabl
 
 	private long lastTick;
 
-	TrackingSound(@Nonnull final EntityLivingBase attachedTo, @Nonnull final SoundEffect sound, final boolean fadeIn) {
+	TrackingSound(@Nonnull final Entity attachedTo, @Nonnull final SoundEffect sound, final boolean fadeIn) {
 		super(sound.getSound(), sound.getCategory());
 
 		this.attachedTo = attachedTo;

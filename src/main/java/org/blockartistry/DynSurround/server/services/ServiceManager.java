@@ -32,10 +32,6 @@ import javax.annotation.Nonnull;
 import org.blockartistry.DynSurround.ModOptions;
 import org.blockartistry.DynSurround.network.Network;
 import org.blockartistry.DynSurround.network.PacketServerData;
-import org.blockartistry.DynSurround.registry.DimensionRegistry;
-import org.blockartistry.DynSurround.registry.RegistryManager;
-import org.blockartistry.DynSurround.registry.RegistryManager.RegistryType;
-
 import gnu.trove.map.hash.TIntDoubleHashMap;
 import net.minecraft.server.MinecraftServer;
 import net.minecraftforge.common.DimensionManager;
@@ -52,7 +48,6 @@ public final class ServiceManager extends Service {
 	private static final ServiceManager INSTANCE = new ServiceManager();
 
 	private final List<Service> services = new ArrayList<Service>();
-	private final DimensionRegistry dimensions = RegistryManager.get(RegistryType.DIMENSION);
 
 	private ServiceManager() {
 		super("ServiceManager");
@@ -84,7 +79,6 @@ public final class ServiceManager extends Service {
 		INSTANCE.addService(INSTANCE);
 		INSTANCE.addService(new AtmosphereService());
 		INSTANCE.addService(new EntityEmojiService());
-		INSTANCE.addService(new HealthEffectService());
 		INSTANCE.addService(new SpeechBubbleService());
 		INSTANCE.addService(new EnvironmentService());
 		INSTANCE.init0();
@@ -99,7 +93,7 @@ public final class ServiceManager extends Service {
 	public void onWorldLoad(final WorldEvent.Load e) {
 		// Tickle the Dimension Registry so it has the
 		// latest info.
-		this.dimensions.loading(e.getWorld());
+		ServerRegistry.DIMENSION.loading(e.getWorld());
 	}
 
 	private static long tpsCount = 0;
@@ -119,7 +113,7 @@ public final class ServiceManager extends Service {
 	 */
 	@SubscribeEvent
 	public void tickEvent(@Nonnull final TickEvent.ServerTickEvent event) {
-		if (!ModOptions.reportServerStats || event.phase != Phase.END)
+		if (!ModOptions.logging.reportServerStats || event.phase != Phase.END)
 			return;
 
 		// Spam once a second

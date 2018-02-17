@@ -1,0 +1,111 @@
+{
+	"biomes": [
+		{
+			"conditions": "MATCH('(?i)(.*space.*)', biome.name)",
+			"_comment": "Galacticraft Space",
+			"soundReset": true,
+			"sounds": [
+			]
+		},
+		{
+			"conditions": "MATCH('(?i)(.*moon.*)', biome.name)",
+			"_comment": "Galacticraft Moon",
+			"soundReset": true,
+			"sounds": [
+			]
+		},
+		{
+			"conditions": "MATCH('(?i)(.*mars flat.*)', biome.name)",
+			"_comment": "Galacticraft Mars",
+			"soundReset": true,
+			"dust": true,
+			"dustColor": "131,100,89",
+			"fog": true,
+			"fogDensity": 0.2,
+			"fogColor": "217,173,112",
+			"sounds": [
+				{
+					"sound": "dsurround:wind",
+					"volume": 0.4,
+					"repeatDelayRandom": 60
+				}
+			]
+		},
+		{
+			"conditions": "MATCH('(?i)(.*asteroids.*)', biome.name)",
+			"_comment": "Galacticraft Asteroids",
+			"soundReset": true,
+			"sounds": [
+			]
+		},
+		{
+			"conditions": "MATCH('(?i)(.*venus.*)', biome.name)",
+			"_comment": "Galacticraft Venus",
+			"soundReset": true,
+			"dust": true,
+			"dustColor": "89,87,87",
+			"fog": true,
+			"fogDensity": 0.4,
+			"fogColor": "255,211,92",
+			"sounds": [
+				{
+					"sound": "dsurround:wind",
+					"volume": 1.2
+				}
+			]
+		}
+	],
+	"dimensions": [
+		{
+			"name": "Space Station",
+			"seaLevel": 0
+		},
+		{
+			"name": "Moon",
+			"seaLevel": 0
+		},
+		{
+			"name": "Mars",
+			"seaLevel": 0,
+			"fog": true,
+			"weather": true
+		},
+		{
+			"name": "Asteroids",
+			"seaLevel": 0
+		},
+		{
+			"name": "Venus",
+			"seaLevel": 0,
+			"fog": true,
+			"weather": true
+		}
+	],
+	"footsteps": {
+		"galacticraftcore:basic_block_moon^3": "gravel",
+		"galacticraftcore:basic_block_moon^4": "stone",
+		"galacticraftcore:basic_block_moon^5": "snow",
+		"galacticraftplanets:mars^0": "ore",
+		"galacticraftplanets:mars^1": "ore",
+		"galacticraftplanets:mars^2": "ore",
+		"galacticraftplanets:mars^3": "ore",
+		"galacticraftplanets:mars^4": "stone",
+		"galacticraftplanets:mars^5": "gravel",
+		"galacticraftplanets:mars^6": "dirt",
+		"galacticraftplanets:mars^7": "brickstone",
+		"galacticraftplanets:venus^0": "dirt",
+		"galacticraftplanets:venus^1": "bedrock",
+		"galacticraftplanets:venus^2": "quicksand",
+		"galacticraftplanets:venus^3": "gravel",
+		"galacticraftplanets:venus^4": "brickstone",
+		"galacticraftplanets:venus^5": "brickstone",
+		"galacticraftplanets:venus^6": "ore",
+		"galacticraftplanets:venus^7": "ore",
+		"galacticraftplanets:venus^8": "ore",
+		"galacticraftplanets:venus^9": "ore",
+		"galacticraftplanets:venus^10": "ore",
+		"galacticraftplanets:venus^11": "ore",
+		"galacticraftplanets:spout": "dirt",
+		"galacticraftplanets:venus_rock_scorched": "dirt"
+	}
+}

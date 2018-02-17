@@ -29,11 +29,12 @@ import org.lwjgl.opengl.GL11;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.FontRenderer;
+import net.minecraft.client.renderer.BufferBuilder;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.renderer.Tessellator;
-import net.minecraft.client.renderer.VertexBuffer;
 import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
 import net.minecraft.util.ResourceLocation;
+import net.minecraft.util.math.Vec2f;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
@@ -71,7 +72,7 @@ public final class GuiUtils {
 		float f1 = (float) (color >> 8 & 255) / 255.0F;
 		float f2 = (float) (color & 255) / 255.0F;
 		Tessellator tessellator = Tessellator.getInstance();
-		VertexBuffer vertexbuffer = tessellator.getBuffer();
+		BufferBuilder vertexbuffer = tessellator.getBuffer();
 		GlStateManager.enableBlend();
 		GlStateManager.disableTexture2D();
 		GlStateManager.tryBlendFuncSeparate(GlStateManager.SourceFactor.SRC_ALPHA,
@@ -106,7 +107,7 @@ public final class GuiUtils {
 		GlStateManager.tryBlendFuncSeparate(770, 771, 1, 0);
 		GlStateManager.shadeModel(7425);
 		Tessellator tessellator = Tessellator.getInstance();
-		VertexBuffer t = tessellator.getBuffer();
+		BufferBuilder t = tessellator.getBuffer();
 		t.begin(7, DefaultVertexFormats.POSITION_COLOR);
 		t.pos((double) (left + right), (double) top, (double) zLevel).color(f1, f2, f3, f).endVertex();
 		t.pos((double) left, (double) top, (double) zLevel).color(f1, f2, f3, f).endVertex();
@@ -131,17 +132,21 @@ public final class GuiUtils {
 	}
 
 	public static void drawTexturedModalRect(@Nonnull final ResourceLocation texture, final int x, final int y,
-			final int width, final int height) {
+			final int width, final int height, @Nonnull final Vec2f u, @Nonnull final Vec2f v) {
 		final float zLevel = 0F;
-		
+
 		Minecraft.getMinecraft().getTextureManager().bindTexture(texture);
-		Tessellator tessellator = Tessellator.getInstance();
-		VertexBuffer vertexbuffer = tessellator.getBuffer();
+		final Tessellator tessellator = Tessellator.getInstance();
+		final BufferBuilder vertexbuffer = tessellator.getBuffer();
 		vertexbuffer.begin(GL11.GL_QUADS, DefaultVertexFormats.POSITION_TEX);
-		vertexbuffer.pos((double) (x + 0), (double) (y + height), (double) zLevel).endVertex();
-		vertexbuffer.pos((double) (x + width), (double) (y + height), (double) zLevel).endVertex();
-		vertexbuffer.pos((double) (x + width), (double) (y + 0), (double) zLevel).endVertex();
-		vertexbuffer.pos((double) (x + 0), (double) (y + 0), (double) zLevel).endVertex();
+		vertexbuffer.pos((double) (x + 0), (double) (y + height), (double) zLevel).tex(u.x, v.x).endVertex();
+		vertexbuffer.pos((double) (x + width), (double) (y + height), (double) zLevel).tex(u.y, v.x).endVertex();
+		vertexbuffer.pos((double) (x + width), (double) (y + 0), (double) zLevel).tex(u.y, v.y).endVertex();
+		vertexbuffer.pos((double) (x + 0), (double) (y + 0), (double) zLevel).tex(u.x, v.y).endVertex();
 		tessellator.draw();
+	}
+
+	public static Vec2f calculateSpan(final int sheetDimension, final int first, final int second) {
+		return new Vec2f(first / (float) sheetDimension, second / (float) sheetDimension);
 	}
 }

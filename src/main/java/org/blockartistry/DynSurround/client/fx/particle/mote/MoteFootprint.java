@@ -26,10 +26,13 @@ package org.blockartistry.DynSurround.client.fx.particle.mote;
 
 import javax.annotation.Nonnull;
 
-import org.blockartistry.DynSurround.client.weather.WeatherProperties;
-import org.blockartistry.lib.MathStuff;
+import org.blockartistry.DynSurround.client.footsteps.interfaces.FootprintStyle;
+import org.blockartistry.DynSurround.client.weather.Weather;
 import org.blockartistry.lib.WorldUtils;
-import net.minecraft.client.renderer.VertexBuffer;
+import org.blockartistry.lib.math.MathStuff;
+
+import net.minecraft.block.state.IBlockState;
+import net.minecraft.client.renderer.BufferBuilder;
 import net.minecraft.entity.Entity;
 import net.minecraft.init.Blocks;
 import net.minecraft.util.math.BlockPos;
@@ -39,7 +42,11 @@ import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
 @SideOnly(Side.CLIENT)
-public class MoteFootprint extends MoteBase {
+public class MoteFootprint extends MoteAgeable {
+
+	// Texture properties of the print
+	private static final float TEXEL_WIDTH = 1F / 8F;
+	private static final float TEXEL_PRINT_WIDTH = TEXEL_WIDTH / 2F;
 
 	// Basic layout of the footprint
 	private static final float WIDTH = 0.125F;
@@ -58,14 +65,16 @@ public class MoteFootprint extends MoteBase {
 
 	protected final float texU1, texU2;
 	protected final float texV1, texV2;
+	protected final float scale;
 
 	protected final Vec2f firstPoint;
 	protected final Vec2f secondPoint;
 	protected final Vec2f thirdPoint;
 	protected final Vec2f fourthPoint;
 
-	public MoteFootprint(@Nonnull final World world, final double x, final double y, final double z,
-			final float rotation, final boolean isRight) {
+	public MoteFootprint(@Nonnull final FootprintStyle style, @Nonnull final World world,
+			final double x, final double y, final double z, final float rotation, final float scale,
+			final boolean isRight) {
 		super(world, x, y, z);
 
 		this.maxAge = 200;
@@ -73,38 +82,39 @@ public class MoteFootprint extends MoteBase {
 		if (++zFighter > 20)
 			zFighter = 1;
 
+		final IBlockState state = WorldUtils.getBlockState(this.world, this.position);
+		this.isSnowLayer = state.getBlock() == Blocks.SNOW_LAYER;
+
 		this.posY += zFighter * 0.001F;
 
-		// If the block is a snow layer block need to adjust the
-		// y up so the footprint rides on top.
-		this.isSnowLayer = WorldUtils.getBlockState(this.world, this.position).getBlock() == Blocks.SNOW_LAYER;
-		if (this.isSnowLayer) {
-			this.posY += 0.125F;
-		}
+		// Make sure that the down position is calculated from the display position!
+		this.downPos = new BlockPos(this.posX, this.posY, this.posZ).down();
 
-		this.downPos = this.position.down();
-
-		this.texU1 = isRight ? 0.5F : 0F;
-		this.texU2 = isRight ? 1.0F : 0.5F;
+		float u1 = style.ordinal() * TEXEL_WIDTH + 1/256F;
+		if (isRight)
+			u1 += TEXEL_PRINT_WIDTH;
+		this.texU1 = u1;
+		this.texU2 = u1 + TEXEL_PRINT_WIDTH;
 		this.texV1 = 0F;
 		this.texV2 = 1F;
+		this.scale = scale;
 
 		// Rotate our vertex coordinates. Since prints are static
 		// doing the rotation on the vertex points during
 		// constructions makes for a much more efficient render
 		// process.
 		final float theRotation = MathStuff.toRadians(-rotation + 180);
-		this.firstPoint = MathStuff.rotate(FIRST_POINT, theRotation);
-		this.secondPoint = MathStuff.rotate(SECOND_POINT, theRotation);
-		this.thirdPoint = MathStuff.rotate(THIRD_POINT, theRotation);
-		this.fourthPoint = MathStuff.rotate(FOURTH_POINT, theRotation);
+		this.firstPoint = MathStuff.rotateScale(FIRST_POINT, theRotation, this.scale);
+		this.secondPoint = MathStuff.rotateScale(SECOND_POINT, theRotation, this.scale);
+		this.thirdPoint = MathStuff.rotateScale(THIRD_POINT, theRotation, this.scale);
+		this.fourthPoint = MathStuff.rotateScale(FOURTH_POINT, theRotation, this.scale);
 	}
 
 	@Override
 	protected boolean advanceAge() {
 		// Footprints age faster when raining
-		if (WeatherProperties.isRaining())
-			this.age += (WeatherProperties.getIntensityLevel() * 100F) / 25;
+		if (Weather.isRaining())
+			this.age += (Weather.getIntensityLevel() * 100F) / 25;
 		return super.advanceAge();
 	}
 
@@ -119,16 +129,12 @@ public class MoteFootprint extends MoteBase {
 	}
 
 	@Override
-	public void renderParticle(VertexBuffer buffer, Entity entityIn, float partialTicks, float rotX, float rotZ,
+	public void renderParticle(BufferBuilder buffer, Entity entityIn, float partialTicks, float rotX, float rotZ,
 			float rotYZ, float rotXY, float rotXZ) {
 
 		float f = ((float) this.age + partialTicks) / ((float) this.maxAge + 1);
 		f = f * f;
-		this.alpha = 2.0F - f * 2.0F;
-
-		if (this.alpha > 1.0F) {
-			this.alpha = 1.0F;
-		}
+		this.alpha = MathStuff.clamp(1.0F - f, 0F, 1F);
 
 		// Sets the alpha
 		this.alpha = this.alpha * 0.4F;

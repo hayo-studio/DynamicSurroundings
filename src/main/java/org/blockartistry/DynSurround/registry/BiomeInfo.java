@@ -23,6 +23,7 @@
 
 package org.blockartistry.DynSurround.registry;
 
+import java.lang.reflect.Field;
 import java.util.List;
 import java.util.Random;
 import java.util.Set;
@@ -31,31 +32,54 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import org.apache.commons.lang3.StringUtils;
+import org.blockartistry.DynSurround.client.ClientRegistry;
 import org.blockartistry.DynSurround.client.handlers.AreaSoundEffectHandler;
 import org.blockartistry.DynSurround.client.sound.SoundEffect;
 import org.blockartistry.DynSurround.data.xface.BiomeConfig;
 import org.blockartistry.DynSurround.data.xface.SoundConfig;
 import org.blockartistry.DynSurround.data.xface.SoundType;
-import org.blockartistry.DynSurround.registry.RegistryManager.RegistryType;
+import org.blockartistry.lib.BiomeUtils;
 import org.blockartistry.lib.Color;
 import org.blockartistry.lib.MyUtils;
 import org.blockartistry.lib.WeightTable;
+import org.blockartistry.lib.compat.ModEnvironment;
 
-import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.biome.Biome;
+import static net.minecraftforge.common.BiomeDictionary.Type;
 import net.minecraft.world.biome.Biome.TempCategory;
 import net.minecraftforge.common.BiomeDictionary;
+import net.minecraftforge.fml.relauncher.ReflectionHelper;
+import net.minecraftforge.fml.relauncher.Side;
+import net.minecraftforge.fml.relauncher.SideOnly;
 
+@SideOnly(Side.CLIENT)
 public final class BiomeInfo implements Comparable<BiomeInfo> {
+
+	private static Class<?> bopBiome = null;
+	private static Field bopBiomeFogDensity = null;
+	private static Field bopBiomeFogColor = null;
+
+	static {
+
+		if (ModEnvironment.BiomesOPlenty.isLoaded())
+			try {
+				bopBiome = Class.forName("biomesoplenty.common.biome.BOPBiome");
+				bopBiomeFogDensity = ReflectionHelper.findField(bopBiome, "fogDensity");
+				bopBiomeFogColor = ReflectionHelper.findField(bopBiome, "fogColor");
+			} catch (final Throwable t) {
+				bopBiome = null;
+				bopBiomeFogDensity = null;
+				bopBiomeFogColor = null;
+			}
+	}
 
 	public final static int DEFAULT_SPOT_CHANCE = 1000 / AreaSoundEffectHandler.SCAN_INTERVAL;
 	public final static SoundEffect[] NO_SOUNDS = {};
 
-	protected final Biome biome;
-	protected final int biomeId;
+	protected final IBiome biome;
 
 	protected boolean hasPrecipitation;
 	protected boolean hasDust;
@@ -70,25 +94,61 @@ public final class BiomeInfo implements Comparable<BiomeInfo> {
 	protected SoundEffect[] spotSounds = NO_SOUNDS;
 	protected int spotSoundChance = DEFAULT_SPOT_CHANCE;
 
-	protected final Set<BiomeDictionary.Type> biomeTypes;
-
 	protected final List<String> comments = Lists.newArrayList();
 
-	public BiomeInfo(@Nonnull final Biome biome) {
+	protected final boolean isRiver;
+	protected final boolean isOcean;
+	protected final boolean isDeepOcean;
+
+	public BiomeInfo(@Nonnull final IBiome biome) {
 		this.biome = biome;
 
 		if (!this.isFake()) {
 			this.hasPrecipitation = canRain() || getEnableSnow();
-			this.biomeTypes = BiomeDictionary.getTypes(this.biome);
-			this.biomeId = Biome.getIdForBiome(this.biome);
-		} else {
-			this.biomeTypes = ImmutableSet.of();
-			this.biomeId = ((FakeBiome) this.biome).getBiomeId();
 		}
+
+		// If it is a BOP biome initialize from the BoP Biome
+		// instance. May be overwritten by DS config.
+		if (bopBiome != null && bopBiome.isInstance(biome)) {
+			try {
+				final int color = bopBiomeFogColor.getInt(biome);
+				if (color > 0) {
+					this.hasFog = true;
+					this.fogColor = new Color(color);
+					this.fogDensity = bopBiomeFogDensity.getFloat(biome);
+				}
+			} catch (final Exception ex) {
+
+			}
+		}
+
+		this.isRiver = this.biome.getTypes().contains(Type.RIVER);
+		this.isOcean = this.biome.getTypes().contains(Type.OCEAN);
+		this.isDeepOcean = this.isOcean && this.getBiomeName().matches("(?i).*deep.*ocean.*|.*abyss.*");
+	}
+
+	public boolean isRiver() {
+		return this.isRiver;
+	}
+
+	public boolean isOcean() {
+		return this.isOcean;
+	}
+
+	public boolean isDeepOcean() {
+		return this.isDeepOcean;
+	}
+
+	public ResourceLocation getKey() {
+		return this.biome.getKey();
 	}
 
 	public int getBiomeId() {
-		return this.biomeId;
+		return this.biome.getId();
+	}
+
+	public Set<Type> getBiomeTypes() {
+		return this.biome.getTypes();
 	}
 
 	void addComment(@Nonnull final String comment) {
@@ -101,7 +161,11 @@ public final class BiomeInfo implements Comparable<BiomeInfo> {
 	}
 
 	public String getBiomeName() {
-		return this.biome.getBiomeName();
+		return this.biome.getName();
+	}
+
+	public boolean hasWeatherEffect() {
+		return this.getHasPrecipitation() || this.getHasDust();
 	}
 
 	public boolean getHasPrecipitation() {
@@ -220,7 +284,8 @@ public final class BiomeInfo implements Comparable<BiomeInfo> {
 	@Nullable
 	public SoundEffect getSpotSound(@Nonnull final Random random) {
 		return this.spotSounds != NO_SOUNDS && random.nextInt(this.spotSoundChance) == 0
-				? new WeightTable<SoundEffect>(this.spotSounds).next() : null;
+				? new WeightTable<SoundEffect>(this.spotSounds).next()
+				: null;
 	}
 
 	void resetSounds() {
@@ -230,11 +295,11 @@ public final class BiomeInfo implements Comparable<BiomeInfo> {
 	}
 
 	public boolean isBiomeType(@Nonnull final BiomeDictionary.Type type) {
-		return this.biomeTypes.contains(type);
+		return this.getBiomeTypes().contains(type);
 	}
 
 	public boolean areBiomesSameClass(@Nonnull final Biome biome) {
-		return BiomeDictionary.areSimilar(this.biome, biome);
+		return BiomeUtils.areBiomesSimilar(this.biome.getBiome(), biome);
 	}
 
 	// Internal to the package
@@ -269,7 +334,7 @@ public final class BiomeInfo implements Comparable<BiomeInfo> {
 			this.setSpotSoundChance(entry.spotSoundChance.intValue());
 
 		for (final SoundConfig sr : entry.sounds) {
-			if (RegistryManager.<SoundRegistry>get(RegistryType.SOUND).isSoundBlocked(sr.sound))
+			if (ClientRegistry.SOUND.isSoundBlocked(sr.sound))
 				continue;
 			final SoundEffect.Builder b = new SoundEffect.Builder(sr);
 			final SoundEffect s = b.build();
@@ -284,7 +349,7 @@ public final class BiomeInfo implements Comparable<BiomeInfo> {
 	@Override
 	@Nonnull
 	public String toString() {
-		final ResourceLocation rl = this.biome.getRegistryName();
+		final ResourceLocation rl = this.biome.getKey();
 		final String registryName = rl == null ? (this.isFake() ? "FAKE" : "UNKNOWN") : rl.toString();
 
 		final StringBuilder builder = new StringBuilder();
@@ -293,7 +358,7 @@ public final class BiomeInfo implements Comparable<BiomeInfo> {
 		if (!this.isFake()) {
 			builder.append("\n+ ").append('<');
 			boolean comma = false;
-			for (final BiomeDictionary.Type t : this.biomeTypes) {
+			for (final BiomeDictionary.Type t : this.getBiomeTypes()) {
 				if (comma)
 					builder.append(',');
 				else

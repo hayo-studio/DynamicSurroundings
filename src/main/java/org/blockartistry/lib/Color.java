@@ -46,6 +46,10 @@ public class Color {
 		ImmutableColor(final int red, final int green, final int blue) {
 			super(red, green, blue);
 		}
+		
+		ImmutableColor(final float red, final float green, final float blue) {
+			super(red, green, blue);
+		}
 
 		@Override
 		public Color scale(final float scaleFactor) {
@@ -104,6 +108,11 @@ public class Color {
 	public static final Color MC_LIGHTPURPLE = new ImmutableColor(255, 85, 255);
 	public static final Color MC_YELLOW = new ImmutableColor(255, 255, 85);
 	public static final Color MC_WHITE = new ImmutableColor(255, 255, 255);
+	
+	// Basic Aurora color
+	public static final Color AURORA_RED = new ImmutableColor(1.0F, 0F, 0F);
+	public static final Color AURORA_GREEN = new ImmutableColor(0.5F, 1.0F, 0.0F);
+	public static final Color AURORA_BLUE = new ImmutableColor(0F, 0.8F, 1.0F);
 
 	private static final Map<TextFormatting, Color> colorLookup = new EnumMap<TextFormatting, Color>(TextFormatting.class);
 	static {
@@ -142,7 +151,11 @@ public class Color {
 	}
 
 	public Color(@Nonnull final Vec3d vec) {
-		this((float) vec.xCoord, (float) vec.yCoord, (float) vec.zCoord);
+		this((float) vec.x, (float) vec.y, (float) vec.z);
+	}
+	
+	public Color(final int rgb) {
+		this((rgb >> 16) & 0xff, (rgb >> 8) & 0xff, rgb & 0xff);
 	}
 
 	public Color(final float red, final float green, final float blue) {
@@ -198,6 +211,14 @@ public class Color {
 		return this;
 	}
 
+	@Nonnull
+	public Color add(final float red, final float green, final float blue) {
+		this.red += red;
+		this.green += green;
+		this.blue += blue;
+		return this;
+	}
+
 	private static float blend(final float c1, final float c2, final float factor) {
 		return (float) Math.sqrt((1.0F - factor) * c1 * c1 + factor * c2 * c2);
 	}
@@ -225,19 +246,19 @@ public class Color {
 
 	@Nonnull
 	public Color adjust(@Nonnull final Vec3d adjust, @Nonnull final Color target) {
-		this.red += adjust.xCoord;
-		if ((adjust.xCoord < 0.0F && this.red < target.red) || (adjust.xCoord > 0.0F && this.red > target.red)) {
+		this.red += adjust.x;
+		if ((adjust.x < 0.0F && this.red < target.red) || (adjust.x > 0.0F && this.red > target.red)) {
 			this.red = target.red;
 		}
 
-		this.green += adjust.yCoord;
-		if ((adjust.yCoord < 0.0F && this.green < target.green)
-				|| (adjust.yCoord > 0.0F && this.green > target.green)) {
+		this.green += adjust.y;
+		if ((adjust.y < 0.0F && this.green < target.green)
+				|| (adjust.y > 0.0F && this.green > target.green)) {
 			this.green = target.green;
 		}
 
-		this.blue += adjust.zCoord;
-		if ((adjust.zCoord < 0.0F && this.blue < target.blue) || (adjust.zCoord > 0.0F && this.blue > target.blue)) {
+		this.blue += adjust.z;
+		if ((adjust.z < 0.0F && this.blue < target.blue) || (adjust.z > 0.0F && this.blue > target.blue)) {
 			this.blue = target.blue;
 		}
 		return this;

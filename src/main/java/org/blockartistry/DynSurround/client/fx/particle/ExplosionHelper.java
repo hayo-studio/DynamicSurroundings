@@ -29,6 +29,7 @@ import javax.annotation.Nonnull;
 
 import org.apache.commons.lang3.StringUtils;
 import org.blockartistry.DynSurround.ModOptions;
+import org.blockartistry.lib.gfx.ParticleHelper;
 import org.blockartistry.lib.random.XorShiftRandom;
 
 import net.minecraft.block.Block;
@@ -117,7 +118,7 @@ public final class ExplosionHelper {
 		final float motionY = rand.nextFloat() * 6.0F + 6.0F;
 
 		final int choice = rand.nextInt(20);
-		if (choice < 3 && ModOptions.addMobParticles) {
+		if (choice < 3 && ModOptions.explosions.addMobParticles) {
 			final String mob = assets.getMob(rand);
 			if (StringUtils.isEmpty(mob))
 				return null;
