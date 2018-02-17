@@ -24,40 +24,36 @@
 
 package org.blockartistry.DynSurround.registry;
 
-import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.util.ArrayList;
-import java.util.EnumMap;
+import java.util.Arrays;
+import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.Map;
 
 import javax.annotation.Nonnull;
 import org.blockartistry.DynSurround.DSurround;
-import org.blockartistry.DynSurround.client.event.RegistryEvent;
+import org.blockartistry.DynSurround.ModOptions;
+import org.blockartistry.DynSurround.data.Profiles;
+import org.blockartistry.DynSurround.data.Profiles.ProfileScript;
+import org.blockartistry.DynSurround.data.xface.DataScripts;
+import org.blockartistry.DynSurround.data.xface.ModConfigurationFile;
+import org.blockartistry.DynSurround.event.ReloadEvent;
+import org.blockartistry.DynSurround.packs.ResourcePacks;
+import org.blockartistry.DynSurround.packs.ResourcePacks.Pack;
 import org.blockartistry.lib.SideLocal;
+import org.blockartistry.lib.task.Scheduler;
 
-import com.google.common.collect.ImmutableList;
-
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.resources.IResourcePack;
-import net.minecraft.client.resources.ResourcePackRepository;
-import net.minecraft.util.IThreadListener;
 import net.minecraft.util.ResourceLocation;
 import net.minecraftforge.common.MinecraftForge;
-import net.minecraftforge.fml.common.FMLCommonHandler;
+import net.minecraftforge.fml.common.Loader;
+import net.minecraftforge.fml.common.ModContainer;
+import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
 public final class RegistryManager {
-
-	public static enum RegistryType {
-		SOUND,
-		BIOME,
-		BLOCK,
-		DIMENSION,
-		FOOTSTEPS,
-		SEASON,
-		ITEMS
-	}
 
 	private static final SideLocal<RegistryManager> managers = new SideLocal<RegistryManager>() {
 		@Override
@@ -67,112 +63,132 @@ public final class RegistryManager {
 	};
 
 	@Nonnull
-	public static <T extends Registry> T get(@Nonnull final RegistryType type) {
-		return (T) managers.get().<T>getRegistry(type);
+	public static RegistryManager get() {
+		return managers.get();
 	}
 
-	public static void reloadResources() {
+	@SideOnly(Side.CLIENT)
+	@SubscribeEvent
+	public static void onReload(@Nonnull final ReloadEvent.Resources event) {
 		reloadResources(Side.CLIENT);
-		reloadResources(Side.SERVER);
+	}
+
+	@SubscribeEvent
+	public static void onReload(@Nonnull final ReloadEvent.Configuration event) {
+		if (event.side == null || event.side == Side.CLIENT)
+			reloadResources(Side.CLIENT);
+		if (event.side == null || event.side == Side.SERVER)
+			reloadResources(Side.SERVER);
 	}
 
 	public static void reloadResources(@Nonnull final Side side) {
 		// Reload can be called on either side so make sure we queue
 		// up a scheduled task appropriately.
 		if (managers.hasValue(side)) {
-			final IThreadListener tl = side == Side.SERVER ? FMLCommonHandler.instance().getMinecraftServerInstance()
-					: Minecraft.getMinecraft();
-			if (tl == null)
-				managers.clear(side);
-			else
-				tl.addScheduledTask(new Runnable() {
-					public void run() {
-						managers.get().reload();
-					}
-				});
+			Scheduler.schedule(side, () -> managers.get().reload());
 		}
 	}
 
 	protected final Side side;
-	protected final ResourceLocation SCRIPT;
-	protected final EnumMap<RegistryType, Registry> registries = new EnumMap<RegistryType, Registry>(RegistryType.class);
+	protected final Map<Class<? extends Registry>, Registry> registries = new IdentityHashMap<>();
+	protected final List<Registry> initOrder = new ArrayList<>();
 	protected boolean initialized;
 
 	RegistryManager(final Side side) {
 		this.side = side;
-		this.registries.put(RegistryType.DIMENSION, new DimensionRegistry(side));
-		this.registries.put(RegistryType.BIOME, new BiomeRegistry(side));
-		this.registries.put(RegistryType.SOUND, new SoundRegistry(side));
-		this.registries.put(RegistryType.SEASON, new SeasonRegistry(side));
-
-		if (side == Side.CLIENT) {
-			this.registries.put(RegistryType.BLOCK, new BlockRegistry(side));
-			this.registries.put(RegistryType.FOOTSTEPS, new FootstepsRegistry(side));
-			this.registries.put(RegistryType.ITEMS, new ItemRegistry(side));
-			this.SCRIPT = new ResourceLocation(DSurround.RESOURCE_ID, "configure.json");
-		} else {
-			this.SCRIPT = null;
-		}
-	}
-
-	@SideOnly(Side.CLIENT)
-	private boolean checkCompatible(@Nonnull final ResourcePackRepository.Entry pack) {
-		return pack.getResourcePack().resourceExists(SCRIPT);
-	}
-
-	@SideOnly(Side.CLIENT)
-	private InputStream openScript(@Nonnull final IResourcePack pack) throws IOException {
-		return pack.getInputStream(SCRIPT);
-	}
-
-	void reload() {
-		for (final Registry r : this.registries.values())
-			if (r != null)
-				r.init();
-
-		new DataScripts(this.side).execute(getAdditionalScripts());
-
-		for (final Registry r : this.registries.values())
-			if (r != null)
-				r.initComplete();
-
-		MinecraftForge.EVENT_BUS.post(new RegistryEvent.Reload(this.side));
 	}
 
 	@SuppressWarnings("unchecked")
-	protected <T> T getRegistry(@Nonnull final RegistryType type) {
-		if(!this.initialized) {
-			this.initialized = true;
-			this.reload();
-		}
-		return (T) this.registries.get(type);
+	public <T> T get(@Nonnull final Class<? extends Registry> reg) {
+		final Registry o = this.registries.get(reg);
+		if (o == null)
+			throw new RuntimeException(
+					"Attempt to get a registry that has not been configured [" + reg.getName() + "]");
+		return (T) this.registries.get(reg);
 	}
 
-	// NOTE: Server side has no resource packs so the client specific
-	// code is not executed when initializing a server side registry.
-	public List<InputStream> getAdditionalScripts() {
-		if (this.side == Side.SERVER)
-			return ImmutableList.of();
+	public void register(@Nonnull final Registry reg) {
+		this.registries.put(reg.getClass(), reg);
+		this.initOrder.add(reg);
+	}
 
-		final List<ResourcePackRepository.Entry> repo = Minecraft.getMinecraft().getResourcePackRepository()
-				.getRepositoryEntries();
-
-		final List<InputStream> streams = new ArrayList<InputStream>();
-
-		// Look in other resource packs for more configuration data
-		for (final ResourcePackRepository.Entry pack : repo) {
-			if (checkCompatible(pack)) {
-				DSurround.log().debug("Found script in resource pack: %s", pack.getResourcePackName());
+	protected void configRegistries(@Nonnull final ModConfigurationFile cfg, @Nonnull final String txt) {
+		if (cfg != null) {
+			DSurround.log().info("Loading %s", txt);
+			this.initOrder.forEach(reg -> {
 				try {
-					final InputStream stream = openScript(pack.getResourcePack());
-					if (stream != null)
-						streams.add(stream);
-				} catch (final Throwable t) {
-					DSurround.log().error("Unable to open script in resource pack", t);
+					reg.configure(cfg);
+				} catch (@Nonnull final Throwable t) {
+					final String temp = String.format("[%s] had issues loading %s!", reg.getClass().getSimpleName(),
+							txt);
+					DSurround.log().error(temp, t);
+				}
+			});
+		}
+	}
+
+	protected void process(@Nonnull final Pack p, @Nonnull ResourceLocation rl, @Nonnull final String txt) {
+		try (final InputStream stream = p.getInputStream(rl)) {
+			if (stream != null) {
+				try (final InputStreamReader reader = new InputStreamReader(stream)) {
+					final ModConfigurationFile cfg = DataScripts.loadFromStream(reader);
+					this.configRegistries(cfg, txt);
 				}
 			}
+		} catch (@Nonnull final Throwable t) {
+			final String temp = String.format("Error loading %s", txt);
+			DSurround.log().error(temp, t);
 		}
-		return streams;
+	}
+
+	public void reload() {
+
+		// Collect the locations where DS data is configured
+		final List<Pack> packs = ResourcePacks.findResourcePacks();
+		final List<ModContainer> activeMods = Loader.instance().getActiveModList();
+
+		DSurround.log().info("Identified the following resource pack locations");
+		packs.stream().map(Pack::toString).forEach(DSurround.log()::info);
+
+		// Do the preinit
+		this.initOrder.forEach(Registry::init);
+
+		// Process the mod config from each of our packs
+		activeMods.stream().map(mod -> {
+			return new ResourceLocation(DSurround.MOD_ID, "data/" + mod.getModId().toLowerCase() + ".json");
+		}).forEach(rl -> {
+			packs.forEach(p -> {
+				final String loadingText = "[" + rl.toString() + "] <- [" + p.getModName() + "]";
+				process(p, rl, loadingText);
+			});
+		});
+
+		// Process general config files from our packs
+		final ResourceLocation rl = ResourcePacks.CONFIGURE_RESOURCE;
+		packs.stream().forEach(p -> process(p, rl, "[" + rl.toString() + "] <- [" + p.getModName() + "]"));
+
+		// Apply built-in profiles
+		final List<ProfileScript> resources = Profiles.getProfileStreams();
+		for (final ProfileScript script : resources) {
+			try (final InputStreamReader reader = new InputStreamReader(script.stream)) {
+				final ModConfigurationFile cfg = DataScripts.loadFromStream(reader);
+				final String loadingText = "[" + DSurround.MOD_ID + "] <- [" + script.packName + "]";
+				this.configRegistries(cfg, loadingText);
+			} catch (@Nonnull final Throwable ex) {
+				final String temp = String.format("Unable to load profile [%s]", script.packName);
+				DSurround.log().error(temp, ex);
+			}
+		}
+
+		// Load scripts specified in the configuration
+		Arrays.stream(ModOptions.general.externalScriptFiles)
+				.forEach(cfg -> configRegistries(DataScripts.loadFromDirectory(cfg), "[" + cfg + "]"));
+
+		// Have the registries finalize their settings
+		this.initOrder.forEach(Registry::initComplete);
+
+		// Let everyone know a reload happened
+		MinecraftForge.EVENT_BUS.post(new ReloadEvent.Registry(this.side));
 	}
 
 }

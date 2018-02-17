@@ -24,14 +24,17 @@
 
 package org.blockartistry.DynSurround.client.fx.particle.mote;
 
-import net.minecraft.client.renderer.VertexBuffer;
+import org.blockartistry.lib.BiomeUtils;
+import org.blockartistry.lib.Color;
+
+import net.minecraft.client.renderer.BufferBuilder;
 import net.minecraft.entity.Entity;
 import net.minecraft.world.World;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
 @SideOnly(Side.CLIENT)
-public class MoteWaterRipple extends MoteBase {
+public class MoteWaterRipple extends MoteAgeable {
 
 	private static final float TEX_SIZE_HALF = 0.5F;
 
@@ -47,6 +50,11 @@ public class MoteWaterRipple extends MoteBase {
 		this.scale = this.growthRate;
 		this.scaledWidth = this.scale * TEX_SIZE_HALF;
 		this.posY -= 0.2D;
+	
+		final Color waterColor = BiomeUtils.getColorForLiquid(world, this.position);
+		this.red = waterColor.red;
+		this.green = waterColor.green;
+		this.blue = waterColor.blue;
 	}
 
 	@Override
@@ -57,7 +65,7 @@ public class MoteWaterRipple extends MoteBase {
 	}
 
 	@Override
-	public void renderParticle(VertexBuffer buffer, Entity entityIn, float partialTicks, float rotationX,
+	public void renderParticle(BufferBuilder buffer, Entity entityIn, float partialTicks, float rotationX,
 			float rotationZ, float rotationYZ, float rotationXY, float rotationXZ) {
 
 		final float x = renderX(partialTicks);

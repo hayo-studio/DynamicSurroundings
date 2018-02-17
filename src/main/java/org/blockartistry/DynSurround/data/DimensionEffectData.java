@@ -30,13 +30,13 @@ import javax.annotation.Nonnull;
 
 import org.blockartistry.DynSurround.DSurround;
 import org.blockartistry.DynSurround.ModOptions;
-import org.blockartistry.lib.MathStuff;
+import org.blockartistry.lib.math.MathStuff;
 import org.blockartistry.lib.random.XorShiftRandom;
 
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.world.World;
-import net.minecraft.world.WorldSavedData;
 import net.minecraft.world.storage.MapStorage;
+import net.minecraft.world.storage.WorldSavedData;
 
 /**
  * Per world effect data for effects
@@ -61,8 +61,8 @@ public final class DimensionEffectData extends WorldSavedData {
 	private int dimensionId = 0;
 	private float intensity = 0.0F;
 	private float currentIntensity = 0.0F;
-	private float minIntensity = ModOptions.defaultMinRainStrength;
-	private float maxIntensity = ModOptions.defaultMaxRainStrength;
+	private float minIntensity = ModOptions.general.defaultMinRainStrength;
+	private float maxIntensity = ModOptions.general.defaultMaxRainStrength;
 	private int thunderTimer = 0;
 
 	private DimensionEffectData(final int dimension) {

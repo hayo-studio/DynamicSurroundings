@@ -31,14 +31,15 @@ import javax.annotation.Nonnull;
 import org.blockartistry.DynSurround.ModOptions;
 import org.blockartistry.DynSurround.client.handlers.EnvironStateHandler.EnvironState;
 import org.blockartistry.lib.Color;
+import org.blockartistry.lib.gfx.OpenGlState;
 import org.lwjgl.opengl.GL11;
 
 import com.google.common.base.Supplier;
 
+import net.minecraft.client.renderer.BufferBuilder;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.renderer.OpenGlHelper;
 import net.minecraft.client.renderer.Tessellator;
-import net.minecraft.client.renderer.VertexBuffer;
 import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
 import net.minecraft.entity.Entity;
 import net.minecraft.util.math.AxisAlignedBB;
@@ -99,8 +100,8 @@ public class ParticleBillboard extends ParticleBase {
 			return false;
 		if (!EnvironState.getPlayer().canEntityBeSeen(this.subject))
 			return false;
-		final double range = ModOptions.speechBubbleRange * ModOptions.speechBubbleRange;
-		return EnvironState.getPlayer().getDistanceSqToEntity(this.subject) <= range;
+		final double range = ModOptions.speechbubbles.speechBubbleRange * ModOptions.speechbubbles.speechBubbleRange;
+		return EnvironState.getPlayer().getDistanceSq(this.subject) <= range;
 	}
 
 	public boolean shouldExpire() {
@@ -147,7 +148,7 @@ public class ParticleBillboard extends ParticleBase {
 	}
 
 	@Override
-	public void renderParticle(final VertexBuffer buffer, final Entity entityIn, final float partialTicks,
+	public void renderParticle(final BufferBuilder buffer, final Entity entityIn, final float partialTicks,
 			final float rotationX, final float rotationZ, final float rotationYZ, final float rotationXY,
 			final float rotationXZ) {
 
@@ -166,8 +167,7 @@ public class ParticleBillboard extends ParticleBase {
 		final float locY = ((float) (this.prevPosY + (this.posY - this.prevPosY) * partialTicks - interpY()));
 		final float locZ = ((float) (this.prevPosZ + (this.posZ - this.prevPosZ) * partialTicks - interpZ()));
 
-		GlStateManager.pushMatrix();
-		GlStateManager.pushAttrib();
+		final OpenGlState glState = OpenGlState.push();
 
 		GlStateManager.translate(locX, locY, locZ);
 		GlStateManager.rotate(yaw, 0.0F, 1.0F, 0.0F);
@@ -175,16 +175,14 @@ public class ParticleBillboard extends ParticleBase {
 		GlStateManager.scale(-this.scale * 0.015D, -this.scale * 0.015F, this.scale * 0.015D);
 
 		OpenGlHelper.setLightmapTextureCoords(OpenGlHelper.lightmapTexUnit, 240.0F, 0.003662109F);
+		final float saveLightX = OpenGlHelper.lastBrightnessX;
+		final float saveLightY = OpenGlHelper.lastBrightnessY;
 
 		GlStateManager.disableTexture2D();
-		GlStateManager.disableLighting();
-		GlStateManager.disableDepth();
 		GlStateManager.depthMask(false);
-
 		GlStateManager.enableBlend();
 		GlStateManager.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
 		GlStateManager.enableAlpha();
-		GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
 
 		// // Draw the background region
 		final float red = B_COLOR.red;
@@ -200,7 +198,6 @@ public class ParticleBillboard extends ParticleBase {
 		Tessellator.getInstance().draw();
 
 		GlStateManager.enableTexture2D();
-		GlStateManager.enableDepth();
 		GlStateManager.depthMask(true);
 		GlStateManager.translate(0, 0, -0.05F);
 
@@ -218,18 +215,13 @@ public class ParticleBillboard extends ParticleBase {
 			lines--;
 		}
 
-		GlStateManager.enableDepth();
-		GlStateManager.depthMask(true);
-		GlStateManager.enableLighting();
-		GlStateManager.disableBlend();
-		GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
-		GlStateManager.popAttrib();
-		GlStateManager.popMatrix();
+		OpenGlHelper.setLightmapTextureCoords(OpenGlHelper.lightmapTexUnit, saveLightX, saveLightY);
+		OpenGlState.pop(glState);
 	}
 
 	@Override
 	public int getBrightnessForRender(final float partialTick) {
-		return this.subject.getBrightnessForRender(partialTick);
+		return this.subject.getBrightnessForRender();
 	}
 
 	@Override

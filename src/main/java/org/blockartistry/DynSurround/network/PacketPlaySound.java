@@ -27,9 +27,10 @@ package org.blockartistry.DynSurround.network;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-import org.blockartistry.DynSurround.client.event.PlayDistributedSoundEvent;
 import org.blockartistry.DynSurround.client.handlers.EnvironStateHandler.EnvironState;
-import org.blockartistry.DynSurround.client.sound.BasicSound;
+import org.blockartistry.DynSurround.event.PlayDistributedSoundEvent;
+import org.blockartistry.lib.sound.BasicSound;
+
 import io.netty.buffer.ByteBuf;
 import net.minecraft.entity.Entity;
 import net.minecraft.nbt.NBTTagCompound;
@@ -78,7 +79,7 @@ public class PacketPlaySound implements IMessage {
 
 	@SideOnly(Side.CLIENT)
 	public PacketPlaySound(@Nonnull final Entity entity, @Nonnull final BasicSound<?> sound) {
-		this.locus = new Locus(entity, sound.getXPosF(), sound.getYPosF(), sound.getZPosF(), RANGE);
+		this.locus = new Locus(entity, sound.getLocusPosition(), RANGE);
 		this.soundClass = sound.getClass().getName();
 		this.nbt = sound.serializeNBT();
 	}

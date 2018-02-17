@@ -37,8 +37,8 @@ import org.blockartistry.lib.Color;
 import org.blockartistry.lib.Localization;
 import org.blockartistry.lib.gui.GuiTooltip;
 import org.blockartistry.lib.gui.GuiTooltip.ITooltipRenderer;
-import org.blockartistry.lib.gui.Panel;
 import org.blockartistry.lib.gui.Panel.Reference;
+import org.blockartistry.lib.gui.StandardPanel;
 
 import com.google.common.collect.Lists;
 
@@ -66,7 +66,7 @@ public class PresetsConfigGui extends GuiScreen implements GuiYesNoCallback, ITo
 	protected final String DELETE_WARNING_TEXT = Localization.format("presets.dlg.DeleteWarning");
 
 	protected final String RESTART_REQUIRED_TEXT = TextFormatting.RED
-			+ Localization.format("presets.dlg.RestartRequired");
+			+ Localization.format("presets.dlg.RestartRequired") + TextFormatting.RESET;
 	protected final String TOOLTIP_RESTART_REQUIRED = TextFormatting.RED
 			+ Localization.format("presets.dlg.RestartRequired.tooltip") + TextFormatting.RESET;
 
@@ -101,8 +101,8 @@ public class PresetsConfigGui extends GuiScreen implements GuiYesNoCallback, ITo
 	protected final GuiScreen parentScreen;
 	protected final PresetConfig config;
 
-	protected final Panel backgroundPanel = new Panel();
-	protected final Panel presetPanel = new Panel(0, 0, Color.GOLD, Color.BLACK, Color.GRAY);
+	protected final StandardPanel backgroundPanel = new StandardPanel();
+	protected final StandardPanel presetPanel = new StandardPanel(0, 0, Color.GOLD, Color.BLACK, Color.GRAY);
 
 	protected int anchorX;
 	protected int anchorY;
@@ -156,10 +156,10 @@ public class PresetsConfigGui extends GuiScreen implements GuiYesNoCallback, ITo
 		this.anchorX = (this.width - REGION_WIDTH) / 2;
 		this.anchorY = (this.height - REGION_HEIGHT) / 2;
 
-		final int titleWidth = this.fontRendererObj.getStringWidth(TITLE);
+		final int titleWidth = this.fontRenderer.getStringWidth(TITLE);
 		final int titleX = this.anchorX + (REGION_WIDTH - titleWidth) / 2;
 		int Y = this.anchorY + INSET;
-		GuiLabel title = new GuiLabel(this.fontRendererObj, ID_TITLE, titleX, Y, REGION_WIDTH, BUTTON_HEIGHT,
+		GuiLabel title = new GuiLabel(this.fontRenderer, ID_TITLE, titleX, Y, REGION_WIDTH, BUTTON_HEIGHT,
 				Color.MC_GOLD.rgb());
 		title.addLine(TITLE);
 		this.labelList.add(title);
@@ -262,7 +262,7 @@ public class PresetsConfigGui extends GuiScreen implements GuiYesNoCallback, ITo
 				if (info.isRestartRequired())
 					builder.append('\n').append(TOOLTIP_RESTART_REQUIRED);
 				if (!StringUtils.isEmpty(info.getDescription().trim()))
-					builder.append("\n\n").append(info.getDescription());
+					builder.append("\n\n").append(TextFormatting.RESET).append(info.getDescription());
 				this.tooltips.set(i, new GuiTooltip(this, button, builder.toString(), PRESET_TOOLTIP_WIDTH));
 			}
 		}

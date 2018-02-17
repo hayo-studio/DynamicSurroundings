@@ -27,9 +27,9 @@ package org.blockartistry.DynSurround.commands;
 import java.util.List;
 
 import org.blockartistry.DynSurround.ModOptions;
-import org.blockartistry.lib.script.Expression;
-import org.blockartistry.lib.script.ExpressionException;
-import org.blockartistry.lib.script.Variant;
+import org.blockartistry.lib.expression.Expression;
+import org.blockartistry.lib.expression.ExpressionException;
+import org.blockartistry.lib.expression.Variant;
 
 import com.google.common.collect.ImmutableList;
 
@@ -45,14 +45,14 @@ import net.minecraftforge.fml.relauncher.SideOnly;
 @SideOnly(Side.CLIENT)
 public class CommandCalc extends CommandBase {
 
-	private final static String COMMAND = ModOptions.commandNameCalc;
+	private final static String COMMAND = ModOptions.commands.calc.commandNameCalc;
 	private final static String COMMAND_OPTION_HELP = "help";
 	private final static String COMMAND_OPTION_FUNCS = "funcs";
 	private final static String COMMAND_OPTION_VARS = "vars";
 	private final static String COMMAND_OPTION_OPS = "ops";
 
 	private static final List<String> ALIAS = ImmutableList.<String>builder()
-			.add(ModOptions.commandAliasCalc.split(" ")).build();
+			.add(ModOptions.commands.calc.commandAliasCalc.split(" ")).build();
 
 	private static final List<String> HELP = ImmutableList.<String>builder()
 			.add(TextFormatting.GOLD + "Calculator command help:")
@@ -64,7 +64,12 @@ public class CommandCalc extends CommandBase {
 	public String getName() {
 		return COMMAND;
 	}
-
+	
+	@Override
+	public int getRequiredPermissionLevel() {
+		return 0;
+	}
+	
 	@Override
 	public List<String> getAliases() {
 		return ALIAS;

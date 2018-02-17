@@ -25,8 +25,6 @@
 package org.blockartistry.DynSurround.client.footsteps.system;
 
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
-
 import org.blockartistry.DynSurround.client.footsteps.implem.AcousticsManager;
 import org.blockartistry.DynSurround.client.footsteps.interfaces.IAcoustic;
 import org.blockartistry.lib.MCHelper;
@@ -34,7 +32,6 @@ import org.blockartistry.lib.MyUtils;
 import net.minecraft.block.SoundType;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Vec3d;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
@@ -45,8 +42,6 @@ public class Association {
 	private final BlockPos pos;
 	private IAcoustic[] data;
 	
-	private Footprint print;
-
 	public Association() {
 		this(AcousticsManager.EMPTY);
 	}
@@ -87,6 +82,10 @@ public class Association {
 	public void add(@Nonnull final IAcoustic acoustics) {
 		this.data = MyUtils.append(this.data, acoustics);
 	}
+	
+	public void add(@Nonnull final IAcoustic[] acoustics) {
+		this.data = MyUtils.concatenate(this.data, acoustics);
+	}
 
 	@Nonnull
 	public BlockPos getPos() {
@@ -97,16 +96,4 @@ public class Association {
 		return this.data == AcousticsManager.NOT_EMITTER;
 	}
 	
-	public boolean hasFootstepImprint() {
-		return Footprint.hasFootstepImprint(this.state, this.pos);
-	}
-	
-	public void generatePrint(@Nonnull final Vec3d position, final float rotation, final boolean isRight) {
-		this.print = Footprint.produce(position, rotation, isRight);
-	}
-	
-	@Nullable
-	public Footprint getPrint() {
-		return this.print;
-	}
 }

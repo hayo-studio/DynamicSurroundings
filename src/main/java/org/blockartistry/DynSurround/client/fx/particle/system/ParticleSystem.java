@@ -27,10 +27,10 @@ package org.blockartistry.DynSurround.client.fx.particle.system;
 import java.util.Random;
 import javax.annotation.Nonnull;
 
-import org.blockartistry.DynSurround.client.fx.particle.ParticleHelper;
 import org.blockartistry.DynSurround.client.fx.particle.ParticleMoteAdapter;
 import org.blockartistry.DynSurround.client.fx.particle.mote.IParticleMote;
 import org.blockartistry.lib.collections.ObjectArray;
+import org.blockartistry.lib.gfx.ParticleHelper;
 import org.blockartistry.lib.random.XorShiftRandom;
 
 import net.minecraft.client.Minecraft;
@@ -55,7 +55,7 @@ public abstract class ParticleSystem {
 	protected final BlockPos position;
 	protected ObjectArray<IParticleMote> myParticles = new ObjectArray<IParticleMote>(ALLOCATION_SIZE);
 	protected int particleLimit;
-	protected boolean isAlive = true;
+	private boolean isAlive = true;
 
 	protected ParticleSystem(final World worldIn, final double posXIn, final double posYIn, final double posZIn) {
 		this.world = worldIn;

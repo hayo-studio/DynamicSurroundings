@@ -32,6 +32,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.client.particle.Particle;
 import net.minecraft.client.renderer.entity.RenderManager;
+import net.minecraft.client.settings.GameSettings;
 import net.minecraft.util.ResourceLocation;
 import net.minecraft.world.World;
 import net.minecraftforge.fml.relauncher.Side;
@@ -41,7 +42,7 @@ import net.minecraftforge.fml.relauncher.SideOnly;
 public abstract class ParticleBase extends Particle {
 	
 	protected final RenderManager manager = Minecraft.getMinecraft().getRenderManager();
-	protected final FontRenderer font = Minecraft.getMinecraft().fontRendererObj;
+	protected final FontRenderer font = Minecraft.getMinecraft().fontRenderer;
 
 	protected ParticleBase(@Nonnull final World worldIn, final double posXIn, final double posYIn,
 			final double posZIn) {
@@ -74,6 +75,7 @@ public abstract class ParticleBase extends Particle {
 	}
 
 	protected boolean isThirdPersonView() {
-		return this.manager.options.thirdPersonView == 2;
+		final GameSettings settings = this.manager.options;
+		return settings == null ? false : settings.thirdPersonView == 2;
 	}
 }

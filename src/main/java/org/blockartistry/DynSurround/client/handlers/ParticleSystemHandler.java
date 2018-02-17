@@ -27,19 +27,13 @@ package org.blockartistry.DynSurround.client.handlers;
 import javax.annotation.Nonnull;
 
 import org.blockartistry.DynSurround.ModOptions;
-import org.blockartistry.DynSurround.api.effects.BlockEffectType;
-import org.blockartistry.DynSurround.api.events.BlockEffectEvent;
 import org.blockartistry.DynSurround.client.fx.particle.system.ParticleSystem;
 import org.blockartistry.DynSurround.client.handlers.EnvironStateHandler.EnvironState;
 import org.blockartistry.lib.BlockPosHelper;
 
-import gnu.trove.iterator.TLongObjectIterator;
 import gnu.trove.map.hash.TLongObjectHashMap;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.util.math.BlockPos;
-import net.minecraft.world.World;
-import net.minecraftforge.fml.common.eventhandler.EventPriority;
-import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
@@ -51,35 +45,29 @@ public class ParticleSystemHandler extends EffectHandlerBase {
 	private final TLongObjectHashMap<ParticleSystem> systems = new TLongObjectHashMap<ParticleSystem>();
 
 	public ParticleSystemHandler() {
-		super("ParticleSystemHandler");
+		super("Particle Systems");
 		INSTANCE = this;
 	}
 
 	@Override
-	public void process(@Nonnull final World world, @Nonnull final EntityPlayer player) {
+	public boolean doTick(final int tick) {
+		return this.systems.size() > 0;
+	}
 
-		if (this.systems.size() == 0)
-			return;
-
-		final double range = ModOptions.specialEffectRange;
+	@Override
+	public void process(@Nonnull final EntityPlayer player) {
+		final double range = ModOptions.general.specialEffectRange;
 		final BlockPos min = EnvironState.getPlayerPosition().add(-range, -range, -range);
 		final BlockPos max = EnvironState.getPlayerPosition().add(range, range, range);
 
-		final TLongObjectIterator<ParticleSystem> itr = this.systems.iterator();
-		while (itr.hasNext()) {
-			itr.advance();
-
-			// If it is out of range expire, else update
-			if (!BlockPosHelper.contains(itr.value().getPos(), min, max)) {
-				itr.value().setExpired();
+		this.systems.retainEntries((idx, system) -> {
+			if (!BlockPosHelper.contains(system.getPos(), min, max)) {
+				system.setExpired();
 			} else {
-				itr.value().onUpdate();
+				system.onUpdate();
 			}
-
-			// If it's dead remove from the list
-			if (!itr.value().isAlive())
-				itr.remove();
-		}
+			return system.isAlive();
+		});
 	}
 
 	@Override
@@ -92,19 +80,9 @@ public class ParticleSystemHandler extends EffectHandlerBase {
 		this.systems.clear();
 	}
 
-	private static boolean interestingEvent(final BlockEffectEvent event) {
-		return event.effect != BlockEffectType.FIREFLY;
-	}
-
-	@SubscribeEvent(priority = EventPriority.HIGHEST)
-	public void onBlockEffectEvent(@Nonnull final BlockEffectEvent event) {
-		if (interestingEvent(event) && !okToSpawn(event.location))
-			event.setCanceled(true);
-	}
-
 	// Determines if it is OK to spawn a particle system at the specified
 	// location. Generally only a single system can occupy a block.
-	private boolean okToSpawn(@Nonnull final BlockPos pos) {
+	public boolean okToSpawn(@Nonnull final BlockPos pos) {
 		return !this.systems.containsKey(pos.toLong());
 	}
 

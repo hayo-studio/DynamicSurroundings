@@ -29,11 +29,14 @@ import java.lang.ref.WeakReference;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import net.minecraft.block.material.Material;
 import net.minecraft.block.state.IBlockState;
+import net.minecraft.init.Biomes;
 import net.minecraft.init.Blocks;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.EnumSkyBlock;
 import net.minecraft.world.World;
+import net.minecraft.world.biome.Biome;
 import net.minecraft.world.chunk.Chunk;
 import net.minecraft.world.chunk.storage.ExtendedBlockStorage;
 
@@ -44,9 +47,10 @@ import net.minecraft.world.chunk.storage.ExtendedBlockStorage;
  */
 public class BlockStateProvider {
 
-	protected static final IBlockState AIR_STATE = Blocks.AIR.getDefaultState();
+	public static final IBlockState AIR_STATE = Blocks.AIR.getDefaultState();
 	protected static final WeakReference<Chunk> NULL_CHUNK = new WeakReference<Chunk>(null);
 
+	protected final BlockPos.MutableBlockPos mutable = new BlockPos.MutableBlockPos();
 	protected WeakReference<World> world;
 	protected WeakReference<Chunk> chunk;
 
@@ -67,10 +71,12 @@ public class BlockStateProvider {
 		Chunk c = null;
 		if ((c = this.chunk.get()) == null || !c.isAtLocation(cX, cZ)) {
 			final World w = this.world.get();
-			if (w == null)
+			if (w == null) {
 				this.chunk = NULL_CHUNK;
-			else
+				c = null;
+			} else {
 				this.chunk = new WeakReference<Chunk>(c = w.getChunkFromChunkCoords(cX, cZ));
+			}
 		}
 
 		return c;
@@ -96,15 +102,9 @@ public class BlockStateProvider {
 	}
 
 	@Nonnull
-	public IBlockState getBlockState(final int x, final int y, final int z) {
-
-		if (y >= 0 && y < 256) {
-
-			final Chunk c = resolveChunk(x, z);
-			if (c == null)
-				return AIR_STATE;
-
-			final ExtendedBlockStorage[] storageArrays = c.getBlockStorageArray();
+	private IBlockState getBlockState0(final Chunk chunk, final int x, final int y, final int z) {
+		if (chunk != null) {
+			final ExtendedBlockStorage[] storageArrays = chunk.getBlockStorageArray();
 			final int idx = y >> 4;
 
 			if (idx < storageArrays.length) {
@@ -116,8 +116,12 @@ public class BlockStateProvider {
 				}
 			}
 		}
-
 		return AIR_STATE;
+	}
+
+	@Nonnull
+	public IBlockState getBlockState(final int x, final int y, final int z) {
+		return (y >= 0 && y < 256) ? getBlockState0(resolveChunk(x, z), x, y, z) : AIR_STATE;
 	}
 
 	public boolean isAvailable(final int x, final int z) {
@@ -130,7 +134,12 @@ public class BlockStateProvider {
 
 		Chunk c;
 		if ((c = this.chunk.get()) == null || !c.isAtLocation(cX, cZ)) {
-			this.chunk = new WeakReference<Chunk>(c = w.getChunkProvider().getLoadedChunk(cX, cZ));
+			c = w.getChunkProvider().getLoadedChunk(cX, cZ);
+			if (c == null) {
+				this.chunk = NULL_CHUNK;
+			} else {
+				this.chunk = new WeakReference<Chunk>(c);
+			}
 		}
 
 		return c != null;
@@ -141,7 +150,46 @@ public class BlockStateProvider {
 	}
 
 	public int getLightFor(@Nonnull final EnumSkyBlock type, @Nonnull final BlockPos pos) {
-		return resolveChunk(pos.getX(), pos.getZ()).getLightFor(type, pos);
+		final Chunk chunk = resolveChunk(pos.getX(), pos.getZ());
+		return chunk != null ? chunk.getLightFor(type, pos) : type.defaultLightValue;
 	}
 
+	public BlockPos getTopSolidOrLiquidBlock(@Nonnull final BlockPos pos) {
+		final int x = pos.getX();
+		final int z = pos.getZ();
+		final Chunk chunk = resolveChunk(x, z);
+
+		if (chunk == null)
+			return pos;
+
+		final World world = this.getWorld();
+
+		for (int dY = chunk.getTopFilledSegment() + 16 - 1; dY >= 0; dY--) {
+			final IBlockState state = getBlockState0(chunk, x, dY, z);
+			final Material material = state.getMaterial();
+			if (material.blocksMovement() && material != Material.LEAVES
+					&& !state.getBlock().isFoliage(world, this.mutable.setPos(x, dY, z)))
+				return this.mutable.toImmutable();
+
+		}
+		return pos;
+	}
+
+	public Biome getBiome(@Nonnull final BlockPos pos) {
+		final int x = pos.getX();
+		final int z = pos.getZ();
+		final Chunk chunk = resolveChunk(x, z);
+
+		if (chunk != null) {
+			try {
+				final World world = this.getWorld();
+				return chunk.getBiome(pos, world.provider.biomeProvider);
+			} catch (@Nonnull final Throwable t) {
+				;
+			}
+		}
+
+		// Foobar
+		return Biomes.PLAINS;
+	}
 }

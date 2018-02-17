@@ -33,8 +33,7 @@ import org.blockartistry.DynSurround.client.footsteps.interfaces.EventType;
 import org.blockartistry.DynSurround.client.footsteps.interfaces.IAcoustic;
 import org.blockartistry.DynSurround.client.footsteps.interfaces.IOptions;
 import org.blockartistry.DynSurround.client.footsteps.interfaces.ISoundPlayer;
-import org.blockartistry.DynSurround.client.footsteps.interfaces.IOptions.Option;
-
+import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.util.SoundEvent;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
@@ -66,7 +65,7 @@ public class BasicAcoustic implements IAcoustic {
 	}
 
 	@Override
-	public void playSound(@Nonnull final ISoundPlayer player, @Nonnull final Object location,
+	public void playSound(@Nonnull final ISoundPlayer player, @Nonnull final EntityLivingBase location,
 			@Nonnull final EventType event, @Nullable final IOptions inputOptions) {
 		// Special case for intentionally empty sounds (as opposed to fall back
 		// sounds)
@@ -76,12 +75,14 @@ public class BasicAcoustic implements IAcoustic {
 		float volume = generateVolume(player.getRNG());
 		float pitch = generatePitch(player.getRNG());
 		if (inputOptions != null) {
-			if (inputOptions.hasOption(Option.GLIDING_VOLUME)) {
-				volume = this.volMin + (this.volMax - this.volMin) * inputOptions.asFloat(Option.GLIDING_VOLUME);
+			if (inputOptions.getGlidingVolume() > 0) {
+				volume = this.volMin + (this.volMax - this.volMin) * inputOptions.getGlidingVolume();
 			}
-			if (inputOptions.hasOption(Option.GLIDING_PITCH)) {
-				pitch = this.pitchMin + (this.pitchMax - this.pitchMin) * inputOptions.asFloat(Option.GLIDING_PITCH);
+			if (inputOptions.getGlidingPitch() > 0) {
+				pitch = this.pitchMin + (this.pitchMax - this.pitchMin) * inputOptions.getGlidingPitch();
 			}
+			volume *= inputOptions.getVolumeScale();
+			pitch *= inputOptions.getPitchScale();
 		}
 
 		player.playSound(location, this.sound, volume, pitch, this.outputOptions);
@@ -125,7 +126,12 @@ public class BasicAcoustic implements IAcoustic {
 	@Override
 	public String toString() {
 		final StringBuilder builder = new StringBuilder();
-		builder.append(this.getAcousticName()).append('[').append(this.sound.getSoundName()).append(']');
+		builder.append(this.getAcousticName()).append('[');
+		if (this.sound != null)
+			builder.append(this.sound.getSoundName());
+		else
+			builder.append("<NO SOUND>");
+		builder.append(']');
 		return builder.toString();
 	}
 

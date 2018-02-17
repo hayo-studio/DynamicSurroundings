@@ -29,17 +29,18 @@ import org.lwjgl.opengl.Display;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.audio.SoundManager;
-import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.gameevent.TickEvent;
 import net.minecraftforge.fml.relauncher.Side;
+import net.minecraftforge.fml.relauncher.SideOnly;
 
-@Mod.EventBusSubscriber(value = Side.CLIENT, modid = DSurround.MOD_ID)
+@SideOnly(Side.CLIENT)
 public class BackgroundMute {
 
 	@SubscribeEvent
 	public static void clientTick(final TickEvent.ClientTickEvent event) {
-		if (ModOptions.muteWhenBackground) {
+		// Make sure that the display is created.  OpenEye says that sometimes it isn't.
+		if (ModOptions.sound.muteWhenBackground && Display.isCreated()) {
 			final SoundManager mgr = Minecraft.getMinecraft().getSoundHandler().sndManager;
 			if (mgr instanceof SoundManagerReplacement) {
 				final SoundManagerReplacement sm = (SoundManagerReplacement) mgr;
@@ -49,10 +50,10 @@ public class BackgroundMute {
 
 				if (active && muted) {
 					sm.setMuted(false);
-					DSurround.log().info("Unmuting sounds");
+					DSurround.log().debug("Unmuting sounds");
 				} else if (!active && !muted) {
 					sm.setMuted(true);
-					DSurround.log().info("Muting sounds");
+					DSurround.log().debug("Muting sounds");
 				}
 			}
 		}

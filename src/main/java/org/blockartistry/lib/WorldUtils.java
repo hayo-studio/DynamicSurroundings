@@ -23,8 +23,6 @@
 
 package org.blockartistry.lib;
 
-import java.util.UUID;
-
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -34,10 +32,18 @@ import net.minecraft.entity.Entity;
 import net.minecraft.init.Blocks;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
+import net.minecraft.world.WorldType;
+import net.minecraft.world.biome.Biome;
 import net.minecraftforge.fml.relauncher.Side;
+import net.minecraftforge.fml.relauncher.SideOnly;
 
+@SideOnly(Side.CLIENT)
 public final class WorldUtils {
 
+	// TODO: Not used currently. Server side doesn't make use of this class
+	// so for the moment do not use side sensitive version to reduce
+	// overhead of figuring what side is executing.
+	@SuppressWarnings("unused")
 	private static final SideLocal<BlockStateProvider> blockProvider = new SideLocal<BlockStateProvider>() {
 		@Override
 		protected BlockStateProvider initialValue(@Nonnull final Side side) {
@@ -45,32 +51,30 @@ public final class WorldUtils {
 		}
 	};
 
+	private static final BlockStateProvider provider = new BlockStateProvider();
+
 	private WorldUtils() {
 
 	}
 
 	@Nonnull
 	public static BlockStateProvider getDefaultBlockStateProvider() {
-		return blockProvider.get();
-	}
-
-	@Nullable
-	public static Entity locateEntity(@Nonnull final World world, @Nonnull final UUID entityId) {
-		if (world == null)
-			return null;
-
-		for (final Entity e : world.getLoadedEntityList())
-			if (e.getUniqueID().equals(entityId))
-				return e;
-		return null;
+		return provider;
+		// return blockProvider.get();
 	}
 
 	@Nullable
 	public static Entity locateEntity(@Nonnull final World world, final int entityId) {
-		if (world == null)
-			return null;
+		Entity entity = null;
+		if (world != null) {
+			try {
+				entity = world.getEntityByID(entityId);
+			} catch (final Throwable t) {
+				;
+			}
+		}
 
-		return world.getEntityByID(entityId);
+		return entity;
 	}
 
 	public static boolean isSolidBlock(@Nonnull final World world, @Nonnull final BlockPos pos) {
@@ -119,4 +123,15 @@ public final class WorldUtils {
 		return getDefaultBlockStateProvider().setWorld(world).isAvailable(pos);
 	}
 
+	public static BlockPos getTopSolidOrLiquidBlock(@Nonnull final World world, @Nonnull final BlockPos pos) {
+		return getDefaultBlockStateProvider().setWorld(world).getTopSolidOrLiquidBlock(pos);
+	}
+
+	public static boolean hasVoidPartiles(@Nonnull final World world) {
+		return world.getWorldType() != WorldType.FLAT && world.provider.hasSkyLight();
+	}
+
+	public static Biome getBiome(@Nonnull final World world, @Nonnull final BlockPos pos) {
+		return getDefaultBlockStateProvider().setWorld(world).getBiome(pos);
+	}
 }
