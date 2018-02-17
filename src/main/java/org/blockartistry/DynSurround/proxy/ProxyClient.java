@@ -26,34 +26,77 @@ package org.blockartistry.DynSurround.proxy;
 
 import javax.annotation.Nonnull;
 
+import org.blockartistry.DynSurround.DSurround;
 import org.blockartistry.DynSurround.ModOptions;
+import org.blockartistry.DynSurround.client.fx.ParticleCollections;
 import org.blockartistry.DynSurround.client.fx.particle.ParticleDripOverride;
+import org.blockartistry.DynSurround.client.gui.HumDinger;
 import org.blockartistry.DynSurround.client.handlers.EffectManager;
-import org.blockartistry.DynSurround.client.handlers.ExpressionStateHandler;
+import org.blockartistry.DynSurround.client.handlers.EnvironStateHandler;
+import org.blockartistry.DynSurround.client.hud.InspectionHUD;
 import org.blockartistry.DynSurround.client.hud.GuiHUDHandler;
+import org.blockartistry.DynSurround.client.hud.LightLevelHUD;
+import org.blockartistry.DynSurround.client.hud.LightingEffectHUD;
+import org.blockartistry.DynSurround.client.keyboard.KeyHandler;
+import org.blockartistry.DynSurround.client.sound.BackgroundMute;
 import org.blockartistry.DynSurround.client.sound.MusicTickerReplacement;
+import org.blockartistry.DynSurround.client.sound.SoundManagerReplacement;
+import org.blockartistry.DynSurround.client.weather.RenderWeather;
+import org.blockartistry.DynSurround.client.weather.Weather;
 import org.blockartistry.DynSurround.commands.CommandCalc;
-import org.blockartistry.DynSurround.registry.SoundRegistry;
+import org.blockartistry.DynSurround.data.PresetHandler;
+import org.blockartistry.DynSurround.event.ReloadEvent;
+import org.blockartistry.DynSurround.event.WorldEventDetector;
 import org.blockartistry.lib.Localization;
+import org.blockartistry.lib.compat.ModEnvironment;
+import org.blockartistry.lib.task.Scheduler;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.resources.IReloadableResourceManager;
+import net.minecraft.client.resources.IResourceManager;
+import net.minecraft.client.resources.IResourceManagerReloadListener;
 import net.minecraft.util.EnumParticleTypes;
 import net.minecraftforge.client.ClientCommandHandler;
+import net.minecraftforge.common.MinecraftForge;
+import net.minecraftforge.fml.client.event.ConfigChangedEvent.OnConfigChangedEvent;
 import net.minecraftforge.fml.common.FMLCommonHandler;
 import net.minecraftforge.fml.common.event.FMLInitializationEvent;
 import net.minecraftforge.fml.common.event.FMLPostInitializationEvent;
 import net.minecraftforge.fml.common.event.FMLPreInitializationEvent;
+import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.network.FMLNetworkEvent.ClientConnectedToServerEvent;
 import net.minecraftforge.fml.common.network.FMLNetworkEvent.ClientDisconnectionFromServerEvent;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
 @SideOnly(Side.CLIENT)
-public class ProxyClient extends Proxy {
-	
+public class ProxyClient extends Proxy implements IResourceManagerReloadListener {
+
 	@Override
 	protected void registerLanguage() {
 		Localization.initialize(Side.CLIENT);
+	}
+
+	@Override
+	protected void eventBusRegistrations() {
+		super.eventBusRegistrations();
+
+		register(HumDinger.class);
+		register(EnvironStateHandler.class);
+		register(InspectionHUD.class);
+		register(LightingEffectHUD.class);
+		register(LightLevelHUD.class);
+		register(KeyHandler.class);
+		register(BackgroundMute.class);
+		register(SoundManagerReplacement.class);
+		register(RenderWeather.class);
+		register(Weather.class);
+		register(PresetHandler.class);
+		register(WorldEventDetector.class);
+		register(LightLevelHUD.class);
+		register(ParticleCollections.class);
+
+		MinecraftForge.EVENT_BUS.register(this);
 	}
 
 	@Override
@@ -69,46 +112,65 @@ public class ProxyClient extends Proxy {
 	@Override
 	public void preInit(@Nonnull final FMLPreInitializationEvent event) {
 		super.preInit(event);
-		ExpressionStateHandler.register();
-		SoundRegistry.initializeRegistry();
 	}
 
 	@Override
 	public void init(@Nonnull final FMLInitializationEvent event) {
 		super.init(event);
+
+		KeyHandler.init();
 		ParticleDripOverride.register();
-		
+
 		ClientCommandHandler.instance.registerCommand(new CommandCalc());
-		
-		if(ModOptions.disableWaterSuspendParticle)
+
+		if (ModOptions.general.disableWaterSuspendParticle)
 			Minecraft.getMinecraft().effectRenderer.registerParticle(EnumParticleTypes.SUSPENDED.getParticleID(), null);
+
+		if (ModEnvironment.AmbientSounds.isLoaded())
+			SoundManagerReplacement.configureSound(null);
 	}
 
 	@Override
 	public void postInit(@Nonnull final FMLPostInitializationEvent event) {
 		MusicTickerReplacement.initialize();
+
+		// Register for resource load events
+		final IResourceManager resourceManager = Minecraft.getMinecraft().getResourceManager();
+		((IReloadableResourceManager) resourceManager).registerReloadListener(this);
 	}
 
 	@Override
 	public void clientConnect(@Nonnull final ClientConnectedToServerEvent event) {
-		Minecraft.getMinecraft().addScheduledTask(new Runnable() {
-			public void run() {
-				EffectManager.register();
-				GuiHUDHandler.register();
-				ProxyClient.this.connectionTime = System.currentTimeMillis();
-			}
+		Scheduler.schedule(Side.CLIENT, () -> {
+			EffectManager.register();
+			GuiHUDHandler.register();
+			Weather.register(DSurround.isInstalledOnServer());
+			ProxyClient.this.connectionTime = System.currentTimeMillis();
 		});
 	}
 
 	@Override
 	public void clientDisconnect(@Nonnull final ClientDisconnectionFromServerEvent event) {
-		Minecraft.getMinecraft().addScheduledTask(new Runnable() {
-			public void run() {
-				EffectManager.unregister();
-				GuiHUDHandler.unregister();
-				ProxyClient.this.connectionTime = 0;
-			}
+		Scheduler.schedule(Side.CLIENT, () -> {
+			EffectManager.unregister();
+			GuiHUDHandler.unregister();
+			Weather.unregister();
+			ProxyClient.this.connectionTime = 0;
 		});
 	}
 
+	@Override
+	public void onResourceManagerReload(@Nonnull final IResourceManager resourceManager) {
+		MinecraftForge.EVENT_BUS.post(new ReloadEvent.Resources(resourceManager));
+	}
+
+	@SubscribeEvent
+	public void onConfigChanged(@Nonnull final OnConfigChangedEvent event) {
+		if (event.getModID().equals(DSurround.MOD_ID)) {
+			// The configuration file changed. Fire an appropriate
+			// event so that various parts of the mod can reinitialize.
+			MinecraftForge.EVENT_BUS.post(new ReloadEvent.Configuration());
+		}
+
+	}
 }

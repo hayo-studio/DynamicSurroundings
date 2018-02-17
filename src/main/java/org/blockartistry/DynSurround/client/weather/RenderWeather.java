@@ -35,15 +35,17 @@ import net.minecraft.client.renderer.EntityRenderer;
 import net.minecraft.world.WorldProvider;
 import net.minecraftforge.client.IRenderHandler;
 import net.minecraftforge.event.world.WorldEvent;
-import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.eventhandler.EventPriority;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.relauncher.Side;
+import net.minecraftforge.fml.relauncher.SideOnly;
 
-@Mod.EventBusSubscriber(value = Side.CLIENT, modid = DSurround.MOD_ID)
+@SideOnly(Side.CLIENT)
 public final class RenderWeather extends IRenderHandler {
 
 	private final StormRenderer renderer;
+	
+	public static int rendererUpdateCount = 0;
 
 	protected RenderWeather() {
 		this.renderer = new StormRenderer();
@@ -54,6 +56,7 @@ public final class RenderWeather extends IRenderHandler {
 	 * hook like that for rain/snow rendering?
 	 */
 	public static void addRainParticles(@Nonnull final EntityRenderer theThis) {
+		rendererUpdateCount++;
 		if(EnvironState.getWorld() != null)
 			StormSplashRenderer.renderStormSplashes(EnvironState.getDimensionId(), theThis);
 	}
@@ -69,7 +72,7 @@ public final class RenderWeather extends IRenderHandler {
 	@SubscribeEvent(priority = EventPriority.LOWEST)
 	public static void onWorldLoad(@Nonnull final WorldEvent.Load e) {
 
-		if (DSurround.proxy().effectiveSide() == Side.SERVER || !ModOptions.enableWeatherASM)
+		if (DSurround.proxy().effectiveSide() == Side.SERVER || !ModOptions.asm.enableWeatherASM)
 			return;
 
 		// Only want to hook if the provider doesn't have special

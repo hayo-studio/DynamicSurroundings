@@ -28,8 +28,8 @@ import org.blockartistry.DynSurround.DSurround;
 import org.blockartistry.DynSurround.ModOptions;
 import org.blockartistry.lib.Color;
 import org.blockartistry.lib.Localization;
-import org.blockartistry.lib.gui.Panel;
 import org.blockartistry.lib.gui.Panel.Reference;
+import org.blockartistry.lib.gui.StandardPanel;
 
 import net.minecraft.client.gui.GuiLabel;
 import net.minecraft.client.gui.GuiPageButtonList.GuiResponder;
@@ -48,7 +48,7 @@ public class VolumeControlGui extends GuiScreen implements GuiResponder {
 	private static final FormatHelper FORMAT = new FormatHelper() {
 		@Override
 		public String getText(int id, String name, float value) {
-			return Localization.format("dlg.format.Display", name, (int) (value * 100));
+			return Localization.format("dsurround.dlg.format.Display", name, (int) (value * 100));
 		}
 	};
 
@@ -63,10 +63,10 @@ public class VolumeControlGui extends GuiScreen implements GuiResponder {
 	protected final Minecraft mc = Minecraft.getMinecraft();
 
 	protected float master = mc.gameSettings.getSoundLevel(SoundCategory.MASTER);
-	protected float biome = ModOptions.masterSoundScaleFactor;
-	protected float footstep = ModOptions.footstepsSoundFactor;
+	protected float biome = ModOptions.sound.masterSoundScaleFactor;
+	protected float footstep = ModOptions.sound.footstepsSoundFactor;
 
-	protected Panel panel = new Panel();
+	protected StandardPanel panel = new StandardPanel();
 
 	private void addSlider(final GuiSlider slider) {
 		slider.setWidth(SLIDER_WIDTH);
@@ -78,19 +78,19 @@ public class VolumeControlGui extends GuiScreen implements GuiResponder {
 		final int drawX = (this.width + 1) / 2 - SLIDER_WIDTH / 2;
 		final int drawY = 40;
 
-		addSlider(new GuiSlider(this, ID_MASTER_SOUND, drawX, drawY, "dlg.name.MasterSound", 0F, 1F, this.master,
+		addSlider(new GuiSlider(this, ID_MASTER_SOUND, drawX, drawY, "dsurround.dlg.name.MasterSound", 0F, 1F, this.master,
 				FORMAT));
-		addSlider(new GuiSlider(this, ID_BIOME_SOUND, drawX, drawY + 25, "dlg.name.BiomeSound", 0F, 1F, this.biome,
+		addSlider(new GuiSlider(this, ID_BIOME_SOUND, drawX, drawY + 25, "dsurround.dlg.name.BiomeSound", 0F, 1F, this.biome,
 				FORMAT));
-		addSlider(new GuiSlider(this, ID_FOOTSTEP_SOUND, drawX, drawY + 50, "dlg.name.FootstepSound", 0F, 1F,
+		addSlider(new GuiSlider(this, ID_FOOTSTEP_SOUND, drawX, drawY + 50, "dsurround.dlg.name.FootstepSound", 0F, 1F,
 				this.footstep, FORMAT));
 
-		final GuiLabel label = new GuiLabel(mc.fontRendererObj, ID_LABEL, drawX, drawY + 75, SLIDER_WIDTH, 10,
+		final GuiLabel label = new GuiLabel(mc.fontRenderer, ID_LABEL, drawX, drawY + 75, SLIDER_WIDTH, 10,
 				Color.MC_WHITE.rgb());
-		label.setCentered().addLine(Localization.format("dlg.name.Close"));
+		label.setCentered().addLine(Localization.format("dsurround.dlg.name.Close"));
 		this.labelList.add(label);
 
-		this.panel.setMinimumWidth(SLIDER_WIDTH + mc.fontRendererObj.FONT_HEIGHT * 2);
+		this.panel.setMinimumWidth(SLIDER_WIDTH + mc.fontRenderer.FONT_HEIGHT * 2);
 		this.panel.setMinimumHeight(4 * 25);
 	}
 
@@ -132,13 +132,13 @@ public class VolumeControlGui extends GuiScreen implements GuiResponder {
 		this.mc.gameSettings.setSoundLevel(SoundCategory.MASTER, this.master);
 		this.mc.gameSettings.saveOptions();
 
-		ModOptions.masterSoundScaleFactor = this.biome;
-		ModOptions.footstepsSoundFactor = this.footstep;
+		ModOptions.sound.masterSoundScaleFactor = this.biome;
+		ModOptions.sound.footstepsSoundFactor = this.footstep;
 
 		this.config.getCategory(ModOptions.CATEGORY_SOUND).get(ModOptions.CONFIG_MASTER_SOUND_FACTOR)
-				.set(ModOptions.masterSoundScaleFactor);
+				.set(ModOptions.sound.masterSoundScaleFactor);
 		this.config.getCategory(ModOptions.CATEGORY_SOUND).get(ModOptions.CONFIG_FOOTSTEPS_SOUND_FACTOR)
-				.set(ModOptions.footstepsSoundFactor);
+				.set(ModOptions.sound.footstepsSoundFactor);
 		this.config.save();
 	}
 

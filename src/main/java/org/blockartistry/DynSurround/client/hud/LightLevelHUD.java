@@ -29,37 +29,46 @@ import javax.annotation.Nonnull;
 import org.blockartistry.DynSurround.DSurround;
 import org.blockartistry.DynSurround.ModOptions;
 import org.blockartistry.DynSurround.client.handlers.EnvironStateHandler.EnvironState;
+import org.blockartistry.DynSurround.event.ReloadEvent;
 import org.blockartistry.lib.BlockStateProvider;
 import org.blockartistry.lib.Color;
-import org.blockartistry.lib.MathStuff;
 import org.blockartistry.lib.collections.ObjectArray;
-import org.blockartistry.lib.font.FastFontRenderer;
+import org.blockartistry.lib.gfx.OpenGlState;
+import org.blockartistry.lib.gfx.OpenGlUtil;
+import org.blockartistry.lib.math.MathStuff;
+import org.lwjgl.opengl.GL11;
 
 import net.minecraft.block.material.Material;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.FontRenderer;
+import net.minecraft.client.renderer.BufferBuilder;
 import net.minecraft.client.renderer.GlStateManager;
+import net.minecraft.client.renderer.Tessellator;
 import net.minecraft.client.renderer.culling.Frustum;
 import net.minecraft.client.renderer.entity.RenderManager;
+import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
 import net.minecraft.entity.EntityLiving.SpawnPlacementType;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.init.Blocks;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.util.math.AxisAlignedBB;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Vec2f;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.EnumSkyBlock;
 import net.minecraft.world.WorldEntitySpawner;
 import net.minecraftforge.client.event.RenderWorldLastEvent;
-import net.minecraftforge.fml.common.Mod;
+import net.minecraftforge.fml.common.eventhandler.EventPriority;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.relauncher.Side;
+import net.minecraftforge.fml.relauncher.SideOnly;
 
-@Mod.EventBusSubscriber(value = Side.CLIENT, modid = DSurround.MOD_ID)
+@SideOnly(Side.CLIENT)
 public final class LightLevelHUD extends GuiOverlay {
 
-	protected static FontRenderer font;
+	private static FontRenderer font;
+	private static LightLevelTextureSheet sheet;
 
 	public static enum Mode {
 		BLOCK, BLOCK_SKY;
@@ -81,10 +90,12 @@ public final class LightLevelHUD extends GuiOverlay {
 
 	private static enum ColorSet {
 
+		//
 		BRIGHT(Color.MC_GREEN, Color.MC_YELLOW, Color.MC_RED, Color.MC_DARKAQUA),
+		//
 		DARK(Color.MC_DARKGREEN, Color.MC_GOLD, Color.MC_DARKRED, Color.MC_DARKBLUE);
 
-		static final float ALPHA = 0.75F;
+		public static final float ALPHA = 1F; // 0.75F;
 
 		public final Color safe;
 		public final Color caution;
@@ -93,10 +104,10 @@ public final class LightLevelHUD extends GuiOverlay {
 
 		private ColorSet(@Nonnull final Color safe, @Nonnull final Color caution, @Nonnull final Color hazard,
 				@Nonnull final Color noSpawn) {
-			this.safe = safe; //.rgbWithAlpha(ALPHA);
-			this.caution = caution; //.rgbWithAlpha(ALPHA);
-			this.hazard = hazard; //.rgbWithAlpha(ALPHA);
-			this.noSpawn = noSpawn; //.rgbWithAlpha(ALPHA);
+			this.safe = safe;
+			this.caution = caution;
+			this.hazard = hazard;
+			this.noSpawn = noSpawn;
 		}
 
 		public static ColorSet getStyle(final int v) {
@@ -107,93 +118,25 @@ public final class LightLevelHUD extends GuiOverlay {
 
 	}
 
-	private static enum DisplayStyle {
-
-		DEFAULT(0.03F) {
-			@Override
-			public void render(final double x, final double y, final double z, final float yaw, final float pitch,
-					@Nonnull final LightCoord coord) {
-				GlStateManager.translate(x + 0.5F, y + 0.3F, z + 0.5F);
-				GlStateManager.rotate(yaw, 0.0F, 1.0F, 0.0F);
-				GlStateManager.rotate(pitch, 1.0F, 0.0F, 0.0F);
-				GlStateManager.scale(-this.scale, -this.scale, this.scale);
-				FastFontRenderer.INSTANCE.drawString(coord.text, coord.margin, 0, coord.color, ColorSet.ALPHA);
-
-			}
-		},
-		SURFACE(0.08F) {
-			@Override
-			public void render(final double x, final double y, final double z, final float yaw, final float pitch,
-					@Nonnull final LightCoord coord) {
-				GlStateManager.translate(x + 0.45D, y + 0.0005D, z + 0.8D);
-				GlStateManager.rotate(90F, 1F, 0F, 0F);
-				GlStateManager.scale(-this.scale, -this.scale, this.scale);
-				FastFontRenderer.INSTANCE.drawString(coord.text, coord.margin, 0, coord.color, ColorSet.ALPHA);
-			}
-		},
-		SURFACE_ROTATE(0.08F) {
-
-			@Override
-			public void render(final double x, final double y, final double z, final float yaw, final float pitch,
-					@Nonnull final LightCoord coord) {
-				GlStateManager.translate(x + 0.5D, y, z + 0.5D);
-				GlStateManager.rotate(surfaceRotationAngle, 0F, 1F, 0F);
-				GlStateManager.translate(-0.05D, 0.0005D, 0.3D);
-				GlStateManager.rotate(90F, 1F, 0F, 0F);
-				GlStateManager.scale(-this.scale, -this.scale, this.scale);
-				FastFontRenderer.INSTANCE.drawString(coord.text, coord.margin, 0, coord.color, ColorSet.ALPHA);
-			}
-		};
-
-		public abstract void render(final double x, final double y, final double z, final float yaw, final float pitch,
-				@Nonnull final LightCoord coord);
-
-		protected final float scale;
-
-		private DisplayStyle(final float scale) {
-			this.scale = scale;
-		}
-
-		public static DisplayStyle getStyle(final int v) {
-			if (v >= values().length)
-				return DEFAULT;
-			return values()[v];
-		}
-
-	}
-
 	private static final class LightCoord {
 		public int x;
 		public double y;
 		public int z;
-		public String text;
+		public int lightLevel;
 		public Color color;
-		public int margin;
 	}
 
 	public static boolean showHUD = false;
 
-	private static final String[] VALUES = new String[16];
-	private static final float[] ROTATION = { 180, 0, 270, 90 };
-
-	private static DisplayStyle displayStyle = DisplayStyle.SURFACE_ROTATE;
 	private static final BlockStateProvider blocks = new BlockStateProvider();
 	private static final int ALLOCATION_SIZE = 2048;
 	private static final ObjectArray<LightCoord> lightLevels = new ObjectArray<LightCoord>(ALLOCATION_SIZE);
 	private static final BlockPos.MutableBlockPos mutable = new BlockPos.MutableBlockPos();
 	private static int nextCoord = 0;
 
-	private static float surfaceRotationAngle = 0F;
-	
-
 	static {
 		for (int i = 0; i < ALLOCATION_SIZE; i++)
 			lightLevels.add(new LightCoord());
-
-		for (int i = 0; i < VALUES.length; i++) {
-			VALUES[i] = Integer.toString(i);
-		}
-
 	}
 
 	private static LightCoord nextCoord() {
@@ -239,8 +182,8 @@ public final class LightLevelHUD extends GuiOverlay {
 
 	protected static void updateLightInfo(@Nonnull final RenderManager manager, final double x, final double y,
 			final double z) {
-		
-		font = Minecraft.getMinecraft().fontRendererObj;
+
+		font = Minecraft.getMinecraft().fontRenderer;
 		final boolean isThirdPerson = manager.options.thirdPersonView == 2;
 
 		// Position frustum behind the player in order to reduce
@@ -251,43 +194,38 @@ public final class LightLevelHUD extends GuiOverlay {
 		final Vec3d lookVec = player.getLookVec();
 		final double fX, fY, fZ;
 		if (isThirdPerson) {
-			fX = x + lookVec.xCoord * 2D;
-			fY = y + lookVec.yCoord * 2D;
-			fZ = z + lookVec.zCoord * 2D;
+			fX = x + lookVec.x * 2D;
+			fY = y + lookVec.y * 2D;
+			fZ = z + lookVec.z * 2D;
 
 		} else {
-			fX = x - lookVec.xCoord * 2D;
-			fY = y - lookVec.yCoord * 2D;
-			fZ = z - lookVec.zCoord * 2D;
+			fX = x - lookVec.x * 2D;
+			fY = y - lookVec.y * 2D;
+			fZ = z - lookVec.z * 2D;
 		}
 		frustum.setPosition(fX, fY, fZ);
 		nextCoord = 0;
 
-		EnumFacing playerFacing = player.getHorizontalFacing();
-		if (isThirdPerson)
-			playerFacing = playerFacing.getOpposite();
-		surfaceRotationAngle = ROTATION[playerFacing.getIndex() - 2];
-
-		final ColorSet colors = ColorSet.getStyle(ModOptions.llColors);
-		final Mode displayMode = Mode.getMode(ModOptions.llDisplayMode);
+		final ColorSet colors = ColorSet.getStyle(ModOptions.lightlevel.llColors);
+		final Mode displayMode = Mode.getMode(ModOptions.lightlevel.llDisplayMode);
 		final int skyLightSub = EnvironState.getWorld().calculateSkylightSubtracted(1.0F);
-		final int rangeXZ = ModOptions.llBlockRange * 2 + 1;
-		final int rangeY = ModOptions.llBlockRange + 1;
+		final int rangeXZ = ModOptions.lightlevel.llBlockRange * 2 + 1;
+		final int rangeY = ModOptions.lightlevel.llBlockRange + 1;
 		final int originX = MathStuff.floor(x) - (rangeXZ / 2);
 		final int originZ = MathStuff.floor(z) - (rangeXZ / 2);
 		final int originY = MathStuff.floor(y) - (rangeY - 3);
 
 		blocks.setWorld(EnvironState.getWorld());
-		
+
 		for (int dX = 0; dX < rangeXZ; dX++)
 			for (int dZ = 0; dZ < rangeXZ; dZ++) {
 
 				final int trueX = originX + dX;
 				final int trueZ = originZ + dZ;
-				
-				if(!blocks.isAvailable(trueX, trueZ))
+
+				if (!blocks.isAvailable(trueX, trueZ))
 					return;
-				
+
 				IBlockState lastState = null;
 
 				for (int dY = 0; dY < rangeY; dY++) {
@@ -306,7 +244,7 @@ public final class LightLevelHUD extends GuiOverlay {
 						mutable.setPos(trueX, trueY, trueZ);
 
 						final boolean mobSpawn = canMobSpawn(mutable);
-						if (mobSpawn || !ModOptions.llHideSafe) {
+						if (mobSpawn || !ModOptions.lightlevel.llHideSafe) {
 							final int blockLight = blocks.getLightFor(EnumSkyBlock.BLOCK, mutable);
 							final int skyLight = blocks.getLightFor(EnumSkyBlock.SKY, mutable) - skyLightSub;
 							final int effective = Math.max(blockLight, skyLight);
@@ -315,21 +253,20 @@ public final class LightLevelHUD extends GuiOverlay {
 							Color color = colors.safe;
 							if (!mobSpawn) {
 								color = colors.noSpawn;
-							} else if (blockLight <= ModOptions.llSpawnThreshold) {
-								if (effective > ModOptions.llSpawnThreshold)
+							} else if (blockLight <= ModOptions.lightlevel.llSpawnThreshold) {
+								if (effective > ModOptions.lightlevel.llSpawnThreshold)
 									color = colors.caution;
 								else
 									color = colors.hazard;
 							}
 
-							if (!(color == colors.safe && ModOptions.llHideSafe)) {
+							if (!(color == colors.safe && ModOptions.lightlevel.llHideSafe)) {
 								final LightCoord coord = nextCoord();
 								coord.x = trueX;
 								coord.y = trueY + heightAdjustment(state, lastState, mutable);
 								coord.z = trueZ;
-								coord.text = VALUES[result];
+								coord.lightLevel = result;
 								coord.color = color;
-								coord.margin = -(font.getStringWidth(coord.text) + 1) / 2;
 							}
 						}
 					}
@@ -338,54 +275,142 @@ public final class LightLevelHUD extends GuiOverlay {
 				}
 			}
 	}
-	
+
 	@Override
 	public void doTick(final int tickRef) {
 		if (!showHUD || tickRef == 0 || tickRef % 3 != 0)
 			return;
 
-		displayStyle = DisplayStyle.getStyle(ModOptions.llStyle);
 		final RenderManager manager = Minecraft.getMinecraft().getRenderManager();
 		updateLightInfo(manager, manager.viewerPosX, manager.viewerPosY, manager.viewerPosZ);
 	}
 
 	@SubscribeEvent
 	public static void doRender(@Nonnull final RenderWorldLastEvent event) {
-
 		if (!showHUD || nextCoord == 0)
 			return;
 
-		GlStateManager.pushMatrix();
-		GlStateManager.pushAttrib();
-
-		GlStateManager.disableLighting();
-		GlStateManager.enableBlend();
-		GlStateManager.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
-		GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
-		GlStateManager.enableDepth();
-		GlStateManager.depthMask(true);
-		FastFontRenderer.INSTANCE.prepare();
+		final EntityPlayer player = EnvironState.getPlayer();
+		if (player == null)
+			return;
 
 		final RenderManager manager = Minecraft.getMinecraft().getRenderManager();
 
+		final OpenGlState glState = OpenGlState.push();
+
+		GlStateManager.enableTexture2D();
+		GlStateManager.disableLighting();
+		GlStateManager.enableBlend();
+		GlStateManager.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
+		GlStateManager.enableDepth();
+		GlStateManager.depthFunc(GL11.GL_LEQUAL);
+		GlStateManager.depthMask(true);
+
+		if (useOldRenderMethod())
+			drawStringRender(player, manager);
+		else
+			textureRender(player, manager);
+
+		OpenGlState.pop(glState);
+	}
+
+	private static void drawStringRender(final EntityPlayer player, final RenderManager manager) {
+
 		final boolean thirdPerson = manager.options.thirdPersonView == 2;
-		final float pitch = manager.playerViewX * (thirdPerson ? -1 : 1);
-		final float yaw = -manager.playerViewY;
-		
+		EnumFacing playerFacing = player.getHorizontalFacing();
+		if (thirdPerson)
+			playerFacing = playerFacing.getOpposite();
+		if (playerFacing == EnumFacing.SOUTH || playerFacing == EnumFacing.NORTH)
+			playerFacing = playerFacing.getOpposite();
+		final float rotationAngle = playerFacing.getOpposite().getHorizontalAngle();
+
 		for (int i = 0; i < nextCoord; i++) {
 			final LightCoord coord = lightLevels.get(i);
 			final double x = coord.x - manager.viewerPosX;
 			final double y = coord.y - manager.viewerPosY;
 			final double z = coord.z - manager.viewerPosZ;
+
+			final String text = String.valueOf(coord.lightLevel);
+			final int margin = -(font.getStringWidth(text) + 1) / 2;
+			final double scale = 0.08D;
+
 			GlStateManager.pushMatrix();
-			displayStyle.render(x, y, z, yaw, pitch, coord);
+			GlStateManager.translate(x + 0.5D, y, z + 0.5D);
+			GlStateManager.rotate(rotationAngle, 0F, 1F, 0F);
+			GlStateManager.translate(-0.05D, 0.0005D, 0.3D);
+			GlStateManager.rotate(90F, 1F, 0F, 0F);
+			GlStateManager.scale(-scale, -scale, scale);
+			GlStateManager.translate(0.3F, 0.3F, 0F);
+			font.drawString(text, margin, 0, Color.BLACK.rgbWithAlpha(0.99F), false);
+			GlStateManager.translate(-0.3F, -0.3F, -0.001F);
+			font.drawString(text, margin, 0, coord.color.rgbWithAlpha(0.99F), false);
 			GlStateManager.popMatrix();
 		}
+	}
 
-		GlStateManager.disableAlpha();
-		GlStateManager.disableBlend();
-		GlStateManager.popAttrib();
-		GlStateManager.popMatrix();
+	private static void textureRender(final EntityPlayer player, final RenderManager manager) {
+
+		final boolean isThirdPerson = manager.options.thirdPersonView == 2;
+		EnumFacing playerFacing = player.getHorizontalFacing();
+		if (isThirdPerson)
+			playerFacing = playerFacing.getOpposite();
+
+		final float rotationAngle = playerFacing.getOpposite().getHorizontalAngle();
+
+		sheet.bindTexture();
+		final BufferBuilder renderer = Tessellator.getInstance().getBuffer();
+
+		for (int i = 0; i < nextCoord; i++) {
+
+			final LightCoord coord = lightLevels.get(i);
+			final double x = coord.x - manager.viewerPosX;
+			final double y = coord.y - manager.viewerPosY;
+			final double z = coord.z - manager.viewerPosZ;
+
+			final Vec2f U = sheet.getMinMaxU(coord.lightLevel);
+			final Vec2f V = sheet.getMinMaxV(coord.lightLevel);
+
+			GlStateManager.pushMatrix();
+			GlStateManager.translate(x + 0.5D, y, z + 0.5D);
+			GlStateManager.rotate(-rotationAngle, 0F, 1F, 0F);
+			GlStateManager.translate(-0.5D, 0.0005D, -0.5D);
+			GlStateManager.rotate(90F, 1F, 0F, 0F);
+
+			final float red = coord.color.red;
+			final float green = coord.color.green;
+			final float blue = coord.color.blue;
+			final float alpha = ColorSet.ALPHA;
+
+			renderer.begin(GL11.GL_QUADS, DefaultVertexFormats.POSITION_TEX_COLOR);
+			renderer.pos(0F, 1F, 0F).tex(U.x, V.x).color(red, green, blue, alpha).endVertex();
+			renderer.pos(1F, 1F, 0F).tex(U.y, V.x).color(red, green, blue, alpha).endVertex();
+			renderer.pos(1F, 0F, 0F).tex(U.y, V.y).color(red, green, blue, alpha).endVertex();
+			renderer.pos(0F, 0F, 0F).tex(U.x, V.y).color(red, green, blue, alpha).endVertex();
+			Tessellator.getInstance().draw();
+
+			GlStateManager.popMatrix();
+		}
+	}
+
+	private static boolean useOldRenderMethod() {
+		return !OpenGlUtil.areFrameBuffersSafe();
+	}
+
+	@SubscribeEvent(priority = EventPriority.LOWEST)
+	public static void resourceReloadEvent(final ReloadEvent.Resources event) {
+		if (useOldRenderMethod()) {
+			DSurround.log().info("Either OptiFine is installed or Framebuffers are disabled");
+			DSurround.log().info("Using drawString method for light level HUD render");
+			if (sheet != null) {
+				sheet.release();
+				sheet = null;
+			}
+		} else {
+			DSurround.log().info("Using cached texture method for light level HUD render");
+			if (sheet == null)
+				sheet = new LightLevelTextureSheet();
+			sheet.updateTexture();
+		}
 	}
 
 }

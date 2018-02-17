@@ -27,22 +27,19 @@ package org.blockartistry.DynSurround.client.weather;
 import java.util.Random;
 import javax.annotation.Nonnull;
 
+import org.blockartistry.DynSurround.client.ClientRegistry;
 import org.blockartistry.DynSurround.client.handlers.EnvironStateHandler.EnvironState;
+import org.blockartistry.DynSurround.client.weather.compat.RandomThings;
 import org.blockartistry.DynSurround.registry.BiomeInfo;
-import org.blockartistry.DynSurround.registry.BiomeRegistry;
-import org.blockartistry.DynSurround.registry.DimensionRegistry;
-import org.blockartistry.DynSurround.registry.RegistryManager;
-import org.blockartistry.DynSurround.registry.SeasonRegistry;
-import org.blockartistry.DynSurround.registry.RegistryManager.RegistryType;
 import org.blockartistry.lib.Color;
 import org.blockartistry.lib.random.XorShiftRandom;
 import org.lwjgl.opengl.GL11;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.BufferBuilder;
 import net.minecraft.client.renderer.EntityRenderer;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.renderer.Tessellator;
-import net.minecraft.client.renderer.VertexBuffer;
 import net.minecraft.client.renderer.entity.RenderManager;
 import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
 import net.minecraft.entity.Entity;
@@ -72,18 +69,43 @@ public class StormRenderer {
 	}
 
 	private final Random random = new XorShiftRandom();
-	private final BiomeRegistry biomes = RegistryManager.get(RegistryType.BIOME);
-	private final DimensionRegistry dimensions = RegistryManager.get(RegistryType.DIMENSION);
-	private final SeasonRegistry season = RegistryManager.get(RegistryType.SEASON);
 	private final BlockPos.MutableBlockPos mutable = new BlockPos.MutableBlockPos();
 
 	@Nonnull
 	private BlockPos getPrecipitationHeight(@Nonnull final World world, @Nonnull final BlockPos pos) {
-		return this.season.getPrecipitationHeight(world, pos);
+		return ClientRegistry.SEASON.getPrecipitationHeight(world, pos);
 	}
 
-	private static void bindTexture(@Nonnull final ResourceLocation resource) {
-		Minecraft.getMinecraft().getTextureManager().bindTexture(resource);
+	private static ResourceLocation effectTexture = null;
+	private static boolean isDrawing = false;
+	private static BufferBuilder worldrenderer = null;
+	private static int locY;
+
+	private static void setupForRender(@Nonnull final ResourceLocation r) {
+		if (effectTexture != r) {
+			if (worldrenderer == null) {
+				worldrenderer = Tessellator.getInstance().getBuffer();
+				final RenderManager manager = Minecraft.getMinecraft().getRenderManager();
+				worldrenderer.setTranslation(-manager.viewerPosX, -manager.viewerPosY, -manager.viewerPosZ);
+				locY = MathHelper.floor(manager.viewerPosY);
+			}
+			if (isDrawing)
+				Tessellator.getInstance().draw();
+			effectTexture = r;
+			Minecraft.getMinecraft().getTextureManager().bindTexture(r);
+			worldrenderer.begin(GL11.GL_QUADS, DefaultVertexFormats.PARTICLE_POSITION_TEX_COLOR_LMAP);
+			isDrawing = true;
+		}
+	}
+
+	private static void closeRender() {
+		if (isDrawing)
+			Tessellator.getInstance().draw();
+		if (worldrenderer != null)
+			worldrenderer.setTranslation(0.0D, 0.0D, 0.0D);
+		isDrawing = false;
+		effectTexture = null;
+		worldrenderer = null;
 	}
 
 	/**
@@ -93,21 +115,19 @@ public class StormRenderer {
 
 		// Don't use EnvironState - may not have been initialized when rendering
 		// starts.
-		final World world = Minecraft.getMinecraft().world;
+		final Minecraft mc = Minecraft.getMinecraft();
+		final World world = mc.world;
 
-		if (!this.dimensions.hasWeather(world))
+		if (!ClientRegistry.DIMENSION.hasWeather(world))
 			return;
 
-		final float rainStrength = WeatherProperties.getIntensityLevel();
+		final float rainStrength = Weather.getIntensityLevel();
 		if (rainStrength <= 0.0F)
 			return;
 
-		final float alphaRatio = rainStrength / WeatherProperties.getMaxIntensityLevel();
+		final float alphaRatio = rainStrength / Weather.getMaxIntensityLevel();
 
 		renderer.enableLightmap();
-
-		final Tessellator tess = Tessellator.getInstance();
-		final VertexBuffer worldrenderer = tess.getBuffer();
 
 		GlStateManager.disableCull();
 		GlStateManager.glNormal3f(0.0F, 1.0F, 0.0F);
@@ -117,20 +137,13 @@ public class StormRenderer {
 				GlStateManager.DestFactor.ZERO);
 		GlStateManager.alphaFunc(516, 0.1F);
 
-		final int range = renderer.mc.gameSettings.fancyGraphics ? 10 : 5;
-		float f1 = (float) renderer.rendererUpdateCount + partialTicks;
-
-		final RenderManager manager = renderer.mc.getRenderManager();
-		worldrenderer.setTranslation(-manager.viewerPosX, -manager.viewerPosY, -manager.viewerPosZ);
-		final int locY = MathHelper.floor(manager.viewerPosY);
+		final int range = mc.gameSettings.fancyGraphics ? 10 : 5;
+		float f1 = (float) RenderWeather.rendererUpdateCount + partialTicks;
 
 		GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
 
-		final WeatherProperties props = WeatherProperties.getIntensity();
-		final Entity entity = renderer.mc.getRenderViewEntity();
-
-		boolean isDrawing = false;
-		ResourceLocation currentTexture = null;
+		final Weather.Properties props = Weather.getWeatherProperties();
+		final Entity entity = mc.getRenderViewEntity();
 
 		final BlockPos playerPos = EnvironState.getPlayerPosition();
 		final int playerX = playerPos.getX();
@@ -143,134 +156,108 @@ public class StormRenderer {
 				final double rainX = RAIN_X_COORDS[idx];
 				final double rainY = RAIN_Y_COORDS[idx];
 				this.mutable.setPos(gridX, 0, gridZ);
-				final BiomeInfo biome = this.biomes.get(world.getBiome(this.mutable));
 
-				if (biome.getHasDust() || biome.getHasPrecipitation()) {
-					final int precipHeight = getPrecipitationHeight(world, this.mutable).getY();
-					int k2 = playerY - range;
-					int l2 = playerY + range;
+				if (!RandomThings.shouldRain(world, this.mutable))
+					continue;
 
-					if (k2 < precipHeight) {
-						k2 = precipHeight;
-					}
+				final BiomeInfo biome = ClientRegistry.BIOME.get(world.getBiome(this.mutable));
 
-					if (l2 < precipHeight) {
-						l2 = precipHeight;
-					}
+				if (!biome.hasWeatherEffect())
+					continue;
 
-					int i3 = precipHeight;
+				final int precipHeight = getPrecipitationHeight(world, this.mutable).getY();
+				final int k2 = Math.max(playerY - range, precipHeight);
+				final int l2 = Math.max(playerY + range, precipHeight);
+				if (k2 == l2)
+					continue;
+				final int i3 = Math.max(precipHeight, locY);
 
-					if (precipHeight < locY) {
-						i3 = locY;
-					}
+				this.random.setSeed(
+						(long) (gridX * gridX * 3121 + gridX * 45238971 ^ gridZ * gridZ * 418711 + gridZ * 13761));
+				this.mutable.setPos(gridX, k2, gridZ);
+				final boolean canSnow = ClientRegistry.SEASON.canWaterFreeze(world, this.mutable);
 
-					if (k2 != l2) {
+				final double d6 = (double) ((float) gridX + 0.5F) - entity.posX;
+				final double d7 = (double) ((float) gridZ + 0.5F) - entity.posZ;
+				final float f3 = MathHelper.sqrt(d6 * d6 + d7 * d7) / (float) range;
+				this.mutable.setPos(gridX, i3, gridZ);
 
-						this.random.setSeed((long) (gridX * gridX * 3121 + gridX * 45238971
-								^ gridZ * gridZ * 418711 + gridZ * 13761));
-						this.mutable.setPos(gridX, k2, gridZ);
-						final boolean canSnow = this.season.canWaterFreeze(world, this.mutable);
+				if (!biome.getHasDust() && !canSnow) {
 
-						if (!biome.getHasDust() && !canSnow) {
+					setupForRender(props.getRainTexture());
 
-							if (!isDrawing || currentTexture != props.getRainTexture()) {
-								if (isDrawing) {
-									tess.draw();
-								}
-								currentTexture = props.getRainTexture();
-								bindTexture(currentTexture);
-								worldrenderer.begin(GL11.GL_QUADS,
-										DefaultVertexFormats.PARTICLE_POSITION_TEX_COLOR_LMAP);
-								isDrawing = true;
-							}
+					// d8 makes the rain fall down. Assumes texture height of 512 pixels.
+					final double d5 = ((double) (RenderWeather.rendererUpdateCount + gridX * gridX * 3121 + gridX * 45238971
+							+ gridZ * gridZ * 418711 + gridZ * 13761 & 31) + (double) partialTicks) / 32.0D
+							* (3.0D + this.random.nextDouble());
 
-							double d5 = ((double) (renderer.rendererUpdateCount + gridX * gridX * 3121
-									+ gridX * 45238971 + gridZ * gridZ * 418711 + gridZ * 13761 & 31)
-									+ (double) partialTicks) / 32.0D * (3.0D + this.random.nextDouble());
-							double d6 = (double) ((float) gridX + 0.5F) - entity.posX;
-							double d7 = (double) ((float) gridZ + 0.5F) - entity.posZ;
-							float f3 = MathHelper.sqrt(d6 * d6 + d7 * d7) / (float) range;
-							float f4 = ((1.0F - f3 * f3) * 0.5F + 0.5F) * alphaRatio;
-							this.mutable.setPos(gridX, i3, gridZ);
-							int j3 = world.getCombinedLight(this.mutable, 0);
-							int k3 = j3 >> 16 & 65535;
-							int l3 = j3 & 65535;
-							worldrenderer.pos((double) gridX - rainX + 0.5D, (double) k2, (double) gridZ - rainY + 0.5D)
-									.tex(0.0D, (double) k2 * 0.25D + d5).color(1.0F, 1.0F, 1.0F, f4).lightmap(k3, l3)
-									.endVertex();
-							worldrenderer.pos((double) gridX + rainX + 0.5D, (double) k2, (double) gridZ + rainY + 0.5D)
-									.tex(1.0D, (double) k2 * 0.25D + d5).color(1.0F, 1.0F, 1.0F, f4).lightmap(k3, l3)
-									.endVertex();
-							worldrenderer.pos((double) gridX + rainX + 0.5D, (double) l2, (double) gridZ + rainY + 0.5D)
-									.tex(1.0D, (double) l2 * 0.25D + d5).color(1.0F, 1.0F, 1.0F, f4).lightmap(k3, l3)
-									.endVertex();
-							worldrenderer.pos((double) gridX - rainX + 0.5D, (double) l2, (double) gridZ - rainY + 0.5D)
-									.tex(0.0D, (double) l2 * 0.25D + d5).color(1.0F, 1.0F, 1.0F, f4).lightmap(k3, l3)
-									.endVertex();
-						} else {
+					final float alpha = ((1.0F - f3 * f3) * 0.5F + 0.5F) * alphaRatio;
+					final int combinedLight = world.getCombinedLight(this.mutable, 0);
+					final int slX16 = combinedLight >> 16 & 65535;
+					final int blX16 = combinedLight & 65535;
 
-							ResourceLocation texture = props.getSnowTexture();
-							if (biome.getHasDust() && !canSnow)
-								texture = props.getDustTexture();
+					worldrenderer.pos((double) gridX - rainX + 0.5D, (double) k2, (double) gridZ - rainY + 0.5D)
+							.tex(0.0D, (double) k2 * 0.25D + d5).color(1.0F, 1.0F, 1.0F, alpha).lightmap(slX16, blX16)
+							.endVertex();
+					worldrenderer.pos((double) gridX + rainX + 0.5D, (double) k2, (double) gridZ + rainY + 0.5D)
+							.tex(1.0D, (double) k2 * 0.25D + d5).color(1.0F, 1.0F, 1.0F, alpha).lightmap(slX16, blX16)
+							.endVertex();
+					worldrenderer.pos((double) gridX + rainX + 0.5D, (double) l2, (double) gridZ + rainY + 0.5D)
+							.tex(1.0D, (double) l2 * 0.25D + d5).color(1.0F, 1.0F, 1.0F, alpha).lightmap(slX16, blX16)
+							.endVertex();
+					worldrenderer.pos((double) gridX - rainX + 0.5D, (double) l2, (double) gridZ - rainY + 0.5D)
+							.tex(0.0D, (double) l2 * 0.25D + d5).color(1.0F, 1.0F, 1.0F, alpha).lightmap(slX16, blX16)
+							.endVertex();
+				} else {
 
-							if (!isDrawing || currentTexture != texture) {
-								if (isDrawing) {
-									tess.draw();
-								}
-								currentTexture = texture;
-								bindTexture(currentTexture);
-								worldrenderer.begin(GL11.GL_QUADS,
-										DefaultVertexFormats.PARTICLE_POSITION_TEX_COLOR_LMAP);
-								isDrawing = true;
-							}
+					ResourceLocation texture = props.getSnowTexture();
+					if (biome.getHasDust() && !canSnow)
+						texture = props.getDustTexture();
 
-							Color color = new Color(1.0F, 1.0F, 1.0F);
-							if (biome.getHasDust()) {
-								final Color c = biome.getDustColor();
-								if (c != null)
-									color.mix(c);
-							}
+					setupForRender(texture);
 
-							double d8 = (double) (((float) (renderer.rendererUpdateCount & 511) + partialTicks)
-									/ 512.0F);
-							// The 0.2F factor was originally 0.01F. It
-							// affects the horizontal movement of particles,
-							// which works well for dust.
-							final float factor = biome.getHasDust() ? 0.2F : 0.01F;
-							double d9 = this.random.nextDouble()
-									+ (double) f1 * factor * (double) ((float) this.random.nextGaussian());
-							double d10 = this.random.nextDouble() + (double) (f1 * (float) this.random.nextGaussian()) * 0.001D;
-							double d11 = (double) ((float) gridX + 0.5F) - entity.posX;
-							double d12 = (double) ((float) gridZ + 0.5F) - entity.posZ;
-							float f6 = MathHelper.sqrt(d11 * d11 + d12 * d12) / (float) range;
-							float f5 = ((1.0F - f6 * f6) * 0.3F + 0.5F) * alphaRatio;
-							this.mutable.setPos(gridX, i3, gridZ);
-							int i4 = (world.getCombinedLight(this.mutable, 0) * 3 + 15728880) / 4;
-							int j4 = i4 >> 16 & 65535;
-							int k4 = i4 & 65535;
-							worldrenderer.pos((double) gridX - rainX + 0.5D, (double) k2, (double) gridZ - rainY + 0.5D)
-									.tex(0.0D + d9, (double) k2 * 0.25D + d8 + d10)
-									.color(color.red, color.green, color.blue, f5).lightmap(j4, k4).endVertex();
-							worldrenderer.pos((double) gridX + rainX + 0.5D, (double) k2, (double) gridZ + rainY + 0.5D)
-									.tex(1.0D + d9, (double) k2 * 0.25D + d8 + d10)
-									.color(color.red, color.green, color.blue, f5).lightmap(j4, k4).endVertex();
-							worldrenderer.pos((double) gridX + rainX + 0.5D, (double) l2, (double) gridZ + rainY + 0.5D)
-									.tex(1.0D + d9, (double) l2 * 0.25D + d8 + d10)
-									.color(color.red, color.green, color.blue, f5).lightmap(j4, k4).endVertex();
-							worldrenderer.pos((double) gridX - rainX + 0.5D, (double) l2, (double) gridZ - rainY + 0.5D)
-									.tex(0.0D + d9, (double) l2 * 0.25D + d8 + d10)
-									.color(color.red, color.green, color.blue, f5).lightmap(j4, k4).endVertex();
-						}
-					}
+					final Color color;
+					if (biome.getHasDust())
+						color = biome.getDustColor();
+					else
+						color = Color.WHITE;
+
+					// d8 makes the snow fall down. Assumes texture height of 512 pixels.
+					final double d8 = (double) (((float) (RenderWeather.rendererUpdateCount & 511) + partialTicks) / 512.0F);
+					// The 0.2F factor was originally 0.01F. It
+					// affects the horizontal movement of particles,
+					// which works well for dust.
+					final float factor = biome.getHasDust() ? 0.2F : 0.01F;
+					// d9 shifts the texture left/right
+					final double d9 = this.random.nextDouble()
+							+ (double) f1 * factor * (double) ((float) this.random.nextGaussian());
+					// d10 shifts the texture up/down
+					final double d10 = this.random.nextDouble()
+							+ (double) (f1 * (float) this.random.nextGaussian()) * 0.001D;
+
+					final float alpha = ((1.0F - f3 * f3) * 0.3F + 0.5F) * alphaRatio;
+					final int combinedLight = (world.getCombinedLight(this.mutable, 0) * 3 + 15728880) / 4;
+					final int slX16 = combinedLight >> 16 & 65535;
+					final int blX16 = combinedLight & 65535;
+
+					worldrenderer.pos((double) gridX - rainX + 0.5D, (double) k2, (double) gridZ - rainY + 0.5D)
+							.tex(0.0D + d9, (double) k2 * 0.25D + d8 + d10)
+							.color(color.red, color.green, color.blue, alpha).lightmap(slX16, blX16).endVertex();
+					worldrenderer.pos((double) gridX + rainX + 0.5D, (double) k2, (double) gridZ + rainY + 0.5D)
+							.tex(1.0D + d9, (double) k2 * 0.25D + d8 + d10)
+							.color(color.red, color.green, color.blue, alpha).lightmap(slX16, blX16).endVertex();
+					worldrenderer.pos((double) gridX + rainX + 0.5D, (double) l2, (double) gridZ + rainY + 0.5D)
+							.tex(1.0D + d9, (double) l2 * 0.25D + d8 + d10)
+							.color(color.red, color.green, color.blue, alpha).lightmap(slX16, blX16).endVertex();
+					worldrenderer.pos((double) gridX - rainX + 0.5D, (double) l2, (double) gridZ - rainY + 0.5D)
+							.tex(0.0D + d9, (double) l2 * 0.25D + d8 + d10)
+							.color(color.red, color.green, color.blue, alpha).lightmap(slX16, blX16).endVertex();
 				}
 			}
 		}
 
-		if (isDrawing) {
-			tess.draw();
-		}
+		closeRender();
 
-		worldrenderer.setTranslation(0.0D, 0.0D, 0.0D);
 		GlStateManager.enableCull();
 		GlStateManager.disableBlend();
 		GlStateManager.alphaFunc(516, 0.1F);

@@ -51,7 +51,6 @@ import net.minecraftforge.common.capabilities.CapabilityManager;
 import net.minecraftforge.common.capabilities.ICapabilityProvider;
 import net.minecraftforge.event.AttachCapabilitiesEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
-import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 
 public class CapabilityEmojiData {
@@ -96,9 +95,8 @@ public class CapabilityEmojiData {
 		return new CapabilityProviderSerializable<IEmojiData>(EMOJI, DEFAULT_FACING, data);
 	}
 
-	@Mod.EventBusSubscriber(modid = DSurround.MOD_ID)
-	private static class EventHandler {
-		
+	public static class EventHandler {
+
 		/*
 		 * Attach the capability to the Entity when it is created.
 		 */
@@ -111,14 +109,16 @@ public class CapabilityEmojiData {
 		}
 
 		/*
-		 * Event generated when a player starts tracking an Entity. Need to send
-		 * an initial sync to the player.
+		 * Event generated when a player starts tracking an Entity. Need to send an
+		 * initial sync to the player.
 		 */
 		@SubscribeEvent
 		public static void trackingEvent(@Nonnull final PlayerEvent.StartTracking event) {
-			final IEmojiData data = event.getTarget().getCapability(EMOJI, DEFAULT_FACING);
-			if (data != null) {
-				Network.sendToPlayer((EntityPlayerMP) event.getEntityPlayer(), new PacketEntityEmote(data));
+			if (event.getTarget() instanceof EntityLivingBase) {
+				final IEmojiData data = event.getTarget().getCapability(EMOJI, DEFAULT_FACING);
+				if (data != null) {
+					Network.sendToPlayer((EntityPlayerMP) event.getEntityPlayer(), new PacketEntityEmote(data));
+				}
 			}
 		}
 	}

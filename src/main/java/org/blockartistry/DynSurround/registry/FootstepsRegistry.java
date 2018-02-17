@@ -26,27 +26,43 @@ package org.blockartistry.DynSurround.registry;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.EnumMap;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Scanner;
+import java.util.Set;
+import java.util.Map.Entry;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import org.blockartistry.DynSurround.DSurround;
 import org.blockartistry.DynSurround.ModOptions;
+import org.blockartistry.DynSurround.client.ClientRegistry;
 import org.blockartistry.DynSurround.client.footsteps.implem.AcousticsManager;
 import org.blockartistry.DynSurround.client.footsteps.implem.BlockMap;
-import org.blockartistry.DynSurround.client.footsteps.implem.Manifest;
 import org.blockartistry.DynSurround.client.footsteps.implem.PrimitiveMap;
+import org.blockartistry.DynSurround.client.footsteps.implem.RainSplashAcoustic;
+import org.blockartistry.DynSurround.client.footsteps.interfaces.IAcoustic;
 import org.blockartistry.DynSurround.client.footsteps.parsers.AcousticsJsonReader;
 import org.blockartistry.DynSurround.client.footsteps.system.Generator;
 import org.blockartistry.DynSurround.client.footsteps.system.GeneratorQP;
-import org.blockartistry.DynSurround.client.footsteps.system.Isolator;
-import org.blockartistry.DynSurround.client.footsteps.system.ResourcePacks;
-import org.blockartistry.DynSurround.client.footsteps.system.Solver;
 import org.blockartistry.DynSurround.client.footsteps.util.ConfigProperty;
-import org.blockartistry.lib.JsonUtils;
+import org.blockartistry.DynSurround.data.xface.ModConfigurationFile;
+import org.blockartistry.DynSurround.data.xface.VariatorConfig;
+import org.blockartistry.DynSurround.data.xface.ModConfigurationFile.ForgeEntry;
+import org.blockartistry.DynSurround.packs.ResourcePacks;
+import org.blockartistry.DynSurround.packs.ResourcePacks.Pack;
+import org.blockartistry.DynSurround.util.BlockState;
+import org.blockartistry.lib.ItemStackUtil;
 import org.blockartistry.lib.MCHelper;
+import org.blockartistry.lib.collections.IdentityHashSet;
+
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockCrops;
 import net.minecraft.block.BlockDoor;
@@ -60,47 +76,164 @@ import net.minecraft.block.BlockOre;
 import net.minecraft.block.BlockPlanks;
 import net.minecraft.block.BlockReed;
 import net.minecraft.block.BlockSapling;
-import net.minecraft.client.resources.IResourcePack;
+import net.minecraft.block.SoundType;
+import net.minecraft.block.material.Material;
+import net.minecraft.block.state.IBlockState;
+import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.item.Item;
+import net.minecraft.item.ItemBlock;
+import net.minecraft.item.ItemBlockSpecial;
 import net.minecraft.item.ItemStack;
-import net.minecraft.world.World;
+import net.minecraft.util.ResourceLocation;
+import net.minecraft.util.SoundEvent;
 import net.minecraftforge.fml.relauncher.Side;
+import net.minecraftforge.fml.relauncher.SideOnly;
 import net.minecraftforge.oredict.OreDictionary;
 
-public class FootstepsRegistry extends Registry {
+@SideOnly(Side.CLIENT)
+public final class FootstepsRegistry extends Registry {
 
-	// System
-	private ResourcePacks dealer = new ResourcePacks();
-	private final Isolator isolator;
+	private static final List<String> FOOTPRINT_SOUND_PROFILE = Arrays.asList("minecraft:block.sand.step",
+			"minecraft:block.gravel.step", "minecraft:block.snow.step");
+
+	private AcousticsManager acousticsManager;
+	private PrimitiveMap primitiveMap;
+	private BlockMap blockMap;
+
+	private Set<Material> FOOTPRINT_MATERIAL;
+	private Set<IBlockState> FOOTPRINT_STATES;
+
+	private Map<ArmorClass, IAcoustic> ARMOR_SOUND;
+	private Map<ArmorClass, IAcoustic> ARMOR_SOUND_FOOT;
+
+	private Map<String, Variator> variators;
+	private Variator childVariator;
+	private Variator playerQuadruped;
 
 	public FootstepsRegistry(@Nonnull final Side side) {
 		super(side);
-		this.isolator = new Isolator();
 	}
 
 	@Override
 	public void init() {
 
+		this.acousticsManager = new AcousticsManager();
+		this.blockMap = new BlockMap(this.acousticsManager);
+		this.primitiveMap = new PrimitiveMap(this.acousticsManager);
+		this.FOOTPRINT_MATERIAL = new IdentityHashSet<>();
+		this.FOOTPRINT_STATES = new IdentityHashSet<>();
+		this.ARMOR_SOUND = new EnumMap<>(ArmorClass.class);
+		this.ARMOR_SOUND_FOOT = new EnumMap<>(ArmorClass.class);
+		this.variators = new HashMap<>();
+
+		// Initialize the known materials that leave footprints
+		this.FOOTPRINT_MATERIAL.add(Material.CLAY);
+		this.FOOTPRINT_MATERIAL.add(Material.GRASS);
+		this.FOOTPRINT_MATERIAL.add(Material.GROUND);
+		this.FOOTPRINT_MATERIAL.add(Material.ICE);
+		this.FOOTPRINT_MATERIAL.add(Material.PACKED_ICE);
+		this.FOOTPRINT_MATERIAL.add(Material.SAND);
+		this.FOOTPRINT_MATERIAL.add(Material.CRAFTED_SNOW);
+		this.FOOTPRINT_MATERIAL.add(Material.SNOW);
+
 		// It's a hack - needs refactor
 		AcousticsManager.SWIM = null;
-		this.getBlockMap().clear();
-		final List<IResourcePack> repo = this.dealer.findResourcePacks();
+		AcousticsManager.JUMP = null;
+		AcousticsManager.SPLASH = null;
 
-		reloadManifests(repo);
+		final List<Pack> repo = ResourcePacks.findResourcePacks();
 		reloadAcoustics(repo);
 		reloadPrimitiveMap(repo);
 
 		seedMap();
 
-		this.isolator.setSolver(new Solver(this.isolator));
-		this.isolator.setGenerator(
-				ModOptions.foostepsQuadruped ? new GeneratorQP(this.isolator) : new Generator(this.isolator));
+	}
+
+	@Override
+	public void configure(@Nonnull final ModConfigurationFile cfg) {
+		for (final ForgeEntry entry : cfg.forgeMappings) {
+			for (final String name : entry.dictionaryEntries)
+				this.registerForgeEntries(entry.acousticProfile, name);
+		}
+
+		for (final Entry<String, String> entry : cfg.footsteps.entrySet()) {
+			this.registerBlocks(entry.getValue(), entry.getKey());
+		}
+
+		for (final String fp : cfg.footprints) {
+			this.registerFootrint(fp);
+		}
+
+		for (final Entry<String, VariatorConfig> entry : cfg.variators.entrySet())
+			this.variators.put(entry.getKey(), new Variator(entry.getValue()));
 	}
 
 	@Override
 	public void initComplete() {
 		this.getBlockMap().freeze();
-		AcousticsManager.SWIM = this.isolator.getAcoustics().compileAcoustics("_SWIM");
+		AcousticsManager.SWIM = this.acousticsManager.compileAcoustics("_SWIM");
+		AcousticsManager.JUMP = this.acousticsManager.compileAcoustics("_JUMP");
+		AcousticsManager.SPLASH = new IAcoustic[] {
+				new RainSplashAcoustic(this.acousticsManager.compileAcoustics("waterfine")) };
+
+		final AcousticsManager am = this.acousticsManager;
+		this.ARMOR_SOUND.put(ArmorClass.NONE, am.getAcoustic("NOT_EMITTER"));
+		this.ARMOR_SOUND.put(ArmorClass.LIGHT, am.getAcoustic("armor_light"));
+		this.ARMOR_SOUND.put(ArmorClass.MEDIUM, am.getAcoustic("armor_medium"));
+		this.ARMOR_SOUND.put(ArmorClass.CRYSTAL, am.getAcoustic("armor_crystal"));
+		this.ARMOR_SOUND.put(ArmorClass.HEAVY, am.getAcoustic("armor_heavy"));
+		this.ARMOR_SOUND_FOOT.put(ArmorClass.NONE, am.getAcoustic("NOT_EMITTER"));
+		this.ARMOR_SOUND_FOOT.put(ArmorClass.LIGHT, am.getAcoustic("armor_light"));
+		this.ARMOR_SOUND_FOOT.put(ArmorClass.MEDIUM, am.getAcoustic("medium_foot"));
+		this.ARMOR_SOUND_FOOT.put(ArmorClass.CRYSTAL, am.getAcoustic("crystal_foot"));
+		this.ARMOR_SOUND_FOOT.put(ArmorClass.HEAVY, am.getAcoustic("heavy_foot"));
+
+		this.childVariator = this.getVariator("child");
+		this.playerQuadruped = this.getVariator("quadruped");
+
+		final ArrayList<String> missingAcoustics = new ArrayList<String>();
+		BlockState.forEach(state -> {
+			// Track missing acoustic for logging
+			if (!FootstepsRegistry.this.getBlockMap().hasAcoustics(state)) {
+				final String blockName = new BlockInfo(state).toString();
+				if (!missingAcoustics.contains(blockName))
+					missingAcoustics.add(blockName);
+			}
+
+			// See if we can identify states that could produce footprints based
+			// on the step sound they make.
+			final Material material = state.getMaterial();
+			if (material.blocksMovement() && !this.FOOTPRINT_MATERIAL.contains(material)
+					&& !this.FOOTPRINT_STATES.contains(state)) {
+				// No nothing about the block. Get the step sound for the block.
+				final SoundType sound = MCHelper.getSoundType(state);
+				if (sound != null) {
+					final SoundEvent event = sound.getStepSound();
+					if (event != null) {
+						final ResourceLocation resource = event.getSoundName();
+						if (resource != null) {
+							final String soundName = resource.toString();
+							if (FOOTPRINT_SOUND_PROFILE.contains(soundName)) {
+								this.FOOTPRINT_STATES.add(state);
+								DSurround.log().debug("Added blockstate [%s] to footprint list",
+										new BlockInfo(state).toString());
+							}
+						}
+					}
+				}
+			}
+
+		});
+
+		// Traverse the IBlockState entries looking for states that do not
+		// have a configuration associated.
+		if (ModOptions.logging.enableDebugLogging && missingAcoustics.size() > 0) {
+			Collections.sort(missingAcoustics);
+			DSurround.log().info("MISSING ACOUSTIC ENTRIES");
+			DSurround.log().info("========================");
+			missingAcoustics.forEach(DSurround.log()::info);
+		}
 	}
 
 	@Override
@@ -108,86 +241,30 @@ public class FootstepsRegistry extends Registry {
 
 	}
 
-	private void reloadManifests(@Nonnull final List<IResourcePack> repo) {
-		for (final IResourcePack pack : repo) {
-			InputStream stream = null;
-			try {
-				stream = this.dealer.openPackDescriptor(pack);
-				if (stream != null) {
-					final Manifest manifest = JsonUtils.load(stream, Manifest.class);
-					if (manifest != null) {
-						DSurround.log().info("Resource pack %s: %s by %s (%s)", pack.getPackName(), manifest.getName(),
-								manifest.getAuthor(), manifest.getWebsite());
-					}
-				}
-			} catch (final Exception e) {
-				DSurround.log().debug("Unable to load variator data from pack %s", pack.getPackName());
-			} finally {
+	private void reloadPrimitiveMap(@Nonnull final List<Pack> repo) {
+		for (final Pack pack : repo) {
+			try (final InputStream stream = pack.getInputStream(ResourcePacks.PRIMITIVEMAP_RESOURCE)) {
 				if (stream != null)
-					try {
-						stream.close();
-					} catch (final IOException e) {
-						;
-					}
+					this.primitiveMap.setup(ConfigProperty.fromStream(stream));
+			} catch (final IOException e) {
+				DSurround.log().debug("Unable to load primitive map data from pack %s", pack.getModName());
 			}
 		}
 	}
 
-	private void reloadPrimitiveMap(@Nonnull final List<IResourcePack> repo) {
-		final PrimitiveMap primitiveMap = new PrimitiveMap(this.isolator);
+	private void reloadAcoustics(@Nonnull final List<Pack> repo) {
+		for (final Pack pack : repo) {
+			try (final InputStream stream = pack.getInputStream(ResourcePacks.ACOUSTICS_RESOURCE)) {
+				if (stream != null)
+					try (final Scanner scanner = new Scanner(stream)) {
+						final String jasonString = scanner.useDelimiter("\\Z").next();
 
-		for (final IResourcePack pack : repo) {
-			InputStream stream = null;
-			try {
-				stream = this.dealer.openPrimitiveMap(pack);
-				if (stream != null)
-					primitiveMap.setup(ConfigProperty.fromStream(stream));
-			} catch (final IOException e) {
-				DSurround.log().debug("Unable to load primitive map data from pack %s", pack.getPackName());
-			} finally {
-				if (stream != null)
-					try {
-						stream.close();
-					} catch (final IOException e) {
-						;
+						new AcousticsJsonReader("").parseJSON(jasonString, this.acousticsManager);
 					}
-			}
-		}
-
-		this.isolator.setPrimitiveMap(primitiveMap);
-	}
-
-	private void reloadAcoustics(@Nonnull final List<IResourcePack> repo) {
-		AcousticsManager acoustics = new AcousticsManager(this.isolator);
-		Scanner scanner = null;
-		InputStream stream = null;
-
-		for (final IResourcePack pack : repo) {
-			try {
-				stream = this.dealer.openAcoustics(pack);
-				if (stream != null) {
-					scanner = new Scanner(stream);
-					final String jasonString = scanner.useDelimiter("\\Z").next();
-
-					new AcousticsJsonReader("").parseJSON(jasonString, acoustics);
-				}
 			} catch (final IOException e) {
-				DSurround.log().debug("Unable to load acoustic data from pack %s", pack.getPackName());
-			} finally {
-				try {
-					if (scanner != null)
-						scanner.close();
-					if (stream != null)
-						stream.close();
-				} catch (final IOException e) {
-					;
-				}
+				DSurround.log().debug("Unable to load acoustic data from pack %s", pack.getModName());
 			}
 		}
-
-		this.isolator.setAcoustics(acoustics);
-		this.isolator.setSoundPlayer(acoustics);
-		this.isolator.setDefaultStepPlayer(acoustics);
 	}
 
 	private void seedMap() {
@@ -229,24 +306,82 @@ public class FootstepsRegistry extends Registry {
 		}
 	}
 
-	public void process(@Nonnull World world, @Nonnull EntityPlayer player) {
-		this.isolator.onFrame(player);
-		if (ModOptions.footstepsSoundFactor > 0)
-			player.nextStepDistance = Integer.MAX_VALUE;
-		else if(player.nextStepDistance == Integer.MAX_VALUE)
-			player.nextStepDistance = 0;
+	public Generator createGenerator(@Nonnull final EntityLivingBase entity) {
+		final EntityEffectInfo info = ClientRegistry.EFFECTS.getEffects(entity);
+		Variator var = this.getVariator(info.variator);
+		if (entity.isChild())
+			var = this.childVariator;
+		else if (entity instanceof EntityPlayer && ModOptions.sound.foostepsQuadruped)
+			var = this.playerQuadruped;
+		return var.QUADRUPED ? new GeneratorQP(var) : new Generator(var);
+	}
+
+	@Nonnull
+	public Variator getVariator(@Nonnull final String varName) {
+		return this.variators.getOrDefault(varName, Variator.DEFAULT);
 	}
 
 	@Nonnull
 	public BlockMap getBlockMap() {
-		return this.isolator.getBlockMap();
+		return this.blockMap;
+	}
+
+	@Nonnull
+	public PrimitiveMap getPrimitiveMap() {
+		return this.primitiveMap;
+	}
+
+	public boolean hasFootprint(@Nonnull final IBlockState state) {
+		return this.FOOTPRINT_MATERIAL.contains(state.getMaterial()) || this.FOOTPRINT_STATES.contains(state);
+	}
+
+	@Nullable
+	public IAcoustic getArmorAcoustic(@Nonnull final ArmorClass ac) {
+		return ac != null ? this.ARMOR_SOUND.get(ac) : null;
+	}
+
+	@Nullable
+	public IAcoustic getFootArmorAcoustic(@Nonnull final ArmorClass ac) {
+		return ac != null ? this.ARMOR_SOUND_FOOT.get(ac) : null;
+	}
+
+	private static Block resolveToBlock(@Nonnull final ItemStack stack) {
+		if (!ItemStackUtil.isValidItemStack(stack))
+			return null;
+		final Item item = stack.getItem();
+		if (item instanceof ItemBlock)
+			return ((ItemBlock) item).getBlock();
+		if (item instanceof ItemBlockSpecial)
+			return ((ItemBlockSpecial) item).getBlock();
+		return null;
+	}
+
+	public void registerFootrint(@Nonnull final String... blocks) {
+		for (String b : blocks) {
+			boolean materialMatch = false;
+			if (b.startsWith("@")) {
+				materialMatch = true;
+				b = b.substring(1);
+			}
+
+			final BlockInfo bi = BlockInfo.create(b);
+			if (materialMatch) {
+				final IBlockState state = bi.getBlock().getDefaultState();
+				this.FOOTPRINT_MATERIAL.add(state.getMaterial());
+			} else if (!bi.isGeneric()) {
+				final IBlockState state = bi.getBlock().getDefaultState();
+				this.FOOTPRINT_STATES.add(state);
+			} else {
+				DSurround.log().warn("Generic matching is not supported for footprints: %s", b);
+			}
+		}
 	}
 
 	public void registerForgeEntries(@Nonnull final String blockClass, @Nonnull final String... entries) {
 		for (final String dictionaryName : entries) {
 			final List<ItemStack> stacks = OreDictionary.getOres(dictionaryName, false);
 			for (final ItemStack stack : stacks) {
-				final Block block = Block.getBlockFromItem(stack.getItem());
+				final Block block = resolveToBlock(stack);
 				if (block != null) {
 					String blockName = MCHelper.nameOf(block);
 					if (stack.getHasSubtypes() && stack.getItemDamage() != OreDictionary.WILDCARD_VALUE)

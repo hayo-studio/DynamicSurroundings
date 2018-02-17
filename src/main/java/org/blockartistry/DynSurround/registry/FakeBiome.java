@@ -23,36 +23,43 @@
 
 package org.blockartistry.DynSurround.registry;
 
+import java.util.Set;
+
 import javax.annotation.Nonnull;
 
+import org.blockartistry.DynSurround.DSurround;
 import org.blockartistry.DynSurround.client.handlers.EnvironStateHandler.EnvironState;
 
+import com.google.common.collect.ImmutableSet;
+
+import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.biome.Biome;
+import net.minecraft.world.biome.Biome.TempCategory;
+import net.minecraftforge.common.BiomeDictionary.Type;
+import net.minecraftforge.fml.relauncher.Side;
+import net.minecraftforge.fml.relauncher.SideOnly;
 
-public class FakeBiome extends Biome {
-	
+@SideOnly(Side.CLIENT)
+public class FakeBiome implements IBiome {
+
 	private static int biomeIdCounter = -200;
-	
+
 	protected final int biomeId = --biomeIdCounter;
+	protected final String name;
+	protected final ResourceLocation key;
 
 	public FakeBiome(@Nonnull final String name) {
-		super(new BiomeProperties(name));
-		
-		this.flowers = null;
-		this.spawnableCaveCreatureList = null;
-		this.spawnableCreatureList = null;
-		this.spawnableMonsterList = null;
-		this.spawnableWaterCreatureList = null;
-		this.theBiomeDecorator = null;
-	}
-	
-	public int getBiomeId() {
-		return this.biomeId;
+		this.name = name;
+		this.key = new ResourceLocation(DSurround.RESOURCE_ID, ("fake_" + name).replace(' ', '_'));
 	}
 
 	private static BiomeInfo getTrueBiome() {
 		return EnvironState.getTruePlayerBiome();
+	}
+
+	public int getId() {
+		return this.biomeId;
 	}
 
 	@Override
@@ -87,6 +94,27 @@ public class FakeBiome extends Biome {
 
 	@Override
 	public float getRainfall() {
-		return getTrueBiome().getRainfall();
+		final BiomeInfo info = getTrueBiome();
+		return info == null ? 0F : info.getRainfall();
+	}
+
+	@Override
+	public Biome getBiome() {
+		return null;
+	}
+
+	@Override
+	public ResourceLocation getKey() {
+		return this.key;
+	}
+
+	@Override
+	public String getName() {
+		return this.name;
+	}
+
+	@Override
+	public Set<Type> getTypes() {
+		return ImmutableSet.of();
 	}
 }

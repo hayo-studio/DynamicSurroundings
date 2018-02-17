@@ -29,10 +29,11 @@ import java.lang.reflect.Field;
 import javax.annotation.Nonnull;
 
 import org.blockartistry.DynSurround.DSurround;
-import org.blockartistry.DynSurround.ModEnvironment;
 import org.blockartistry.DynSurround.client.gui.ConfigSound;
 import org.blockartistry.DynSurround.client.handlers.EnvironStateHandler.EnvironState;
-import org.blockartistry.lib.MathStuff;
+import org.blockartistry.lib.compat.ModEnvironment;
+import org.blockartistry.lib.math.MathStuff;
+import org.blockartistry.lib.sound.BasicSound;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.audio.MusicTicker;
@@ -57,11 +58,8 @@ public class MusicTickerReplacement extends MusicTicker {
 
 	private float currentScale = 1.0F;
 
-	private final BasicSound.ISoundScale MUSIC_SCALER = new BasicSound.ISoundScale() {
-		@Override
-		public float getScale() {
-			return MusicTickerReplacement.this.currentScale;
-		}
+	private final BasicSound.ISoundScale MUSIC_SCALER = () -> {
+		return MusicTickerReplacement.this.currentScale;
 	};
 
 	public MusicTickerReplacement(@Nonnull final Minecraft mcIn) {
@@ -79,9 +77,9 @@ public class MusicTickerReplacement extends MusicTicker {
 
 		// Make sure it is properly bounded
 		this.currentScale = MathStuff.clamp(this.currentScale, MIN_VOLUME_SCALE, 1.0F);
-		
-		if(this.currentMusic instanceof ConfigSound) {
-			if(!SoundEngine.instance().isSoundPlaying((BasicSound<?>) this.currentMusic)) {
+
+		if (this.currentMusic instanceof ConfigSound) {
+			if (!SoundEngine.instance().isSoundPlaying((BasicSound<?>) this.currentMusic)) {
 				this.currentMusic = null;
 				this.timeUntilNextMusic = 60;
 				super.update();
@@ -90,7 +88,7 @@ public class MusicTickerReplacement extends MusicTicker {
 			super.update();
 		}
 	}
-	
+
 	public void setPlaying(@Nonnull final ConfigSound sound) {
 		this.stopMusic();
 		this.currentMusic = sound;
@@ -104,7 +102,6 @@ public class MusicTickerReplacement extends MusicTicker {
 		this.timeUntilNextMusic = Integer.MAX_VALUE;
 	}
 
-	@Override
 	public void stopMusic() {
 		if (this.currentMusic != null) {
 			SoundEngine.instance().stopSound((BasicSound<?>) this.currentMusic);

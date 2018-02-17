@@ -24,9 +24,9 @@
 
 package org.blockartistry.DynSurround.client.weather;
 
-import org.blockartistry.DynSurround.client.fx.particle.ParticleHelper;
 import org.blockartistry.DynSurround.client.handlers.EnvironStateHandler.EnvironState;
 import org.blockartistry.lib.WorldUtils;
+import org.blockartistry.lib.gfx.ParticleHelper;
 
 import net.minecraft.block.Block;
 import net.minecraft.block.material.Material;
@@ -43,7 +43,7 @@ public class NetherSplashRenderer extends StormSplashRenderer {
 
 	@Override
 	protected SoundEvent getBlockSoundFX(final Block block, final boolean hasDust, final World world) {
-		return hasDust ? WeatherProperties.getIntensity().getDustSound() : null;
+		return hasDust ? Weather.getWeatherProperties().getDustSound() : null;
 	}
 
 	@Override

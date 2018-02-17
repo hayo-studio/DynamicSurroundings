@@ -29,19 +29,28 @@ import net.minecraftforge.fml.relauncher.SideOnly;
 
 @SideOnly(Side.CLIENT)
 public interface IOptions {
-	
-	public static enum Option {
-		DELAY_MIN,
-		DELAY_MAX,
-		GLIDING_VOLUME,
-		GLIDING_PITCH
-		
-	};
-	
-	public boolean hasOption(final Option option);
-	
-	public long asLong(final Option option);
-	public float asFloat(final Option option);
 
-	public Object getOption(final Option option);
+	default long getDelayMin() {
+		return 0;
+	}
+
+	default long getDelayMax() {
+		return 0;
+	}
+
+	default float getGlidingVolume() {
+		return 0;
+	}
+
+	default float getGlidingPitch() {
+		return 0;
+	}
+	
+	default float getVolumeScale() {
+		return 1F;
+	}
+	
+	default float getPitchScale() {
+		return 1F;
+	}
 }

@@ -32,8 +32,11 @@ import net.minecraft.world.World;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
+/**
+ * A particle that is capable of moving it's position in the world.
+ */
 @SideOnly(Side.CLIENT)
-public abstract class MoteMotionBase extends MoteBase {
+public abstract class MoteMotionBase extends MoteAgeable {
 
 	protected double motionX;
 	protected double motionY;
@@ -70,6 +73,14 @@ public abstract class MoteMotionBase extends MoteBase {
 	protected float renderZ(final float partialTicks) {
 		return (float) (this.prevZ + (this.posZ - this.prevZ) * (double) partialTicks - interpZ());
 	}
+	
+	protected boolean hasCollided() {
+		return WorldUtils.isSolidBlock(this.world, this.position);
+	}
+	
+	protected void handleCollision() {
+		this.kill();
+	}
 
 	@Override
 	protected void update() {
@@ -85,8 +96,8 @@ public abstract class MoteMotionBase extends MoteBase {
 
 		this.position.setPos(this.posX, this.posY, this.posZ);
 
-		if (WorldUtils.isSolidBlock(this.world, this.position)) {
-			this.kill();
+		if (this.hasCollided()) {
+			this.handleCollision();
 		} else {
 			this.motionX *= 0.9800000190734863D;
 			this.motionY *= 0.9800000190734863D;

@@ -23,15 +23,8 @@
 
 package org.blockartistry.DynSurround.registry;
 
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.lang.reflect.ParameterizedType;
-import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -39,14 +32,10 @@ import org.apache.commons.lang3.StringUtils;
 import org.blockartistry.DynSurround.DSurround;
 import org.blockartistry.DynSurround.ModOptions;
 import org.blockartistry.DynSurround.client.gui.ConfigSound;
-import org.blockartistry.DynSurround.data.xface.SoundMetadataConfig;
-import org.blockartistry.lib.MathStuff;
+import org.blockartistry.DynSurround.client.sound.Sounds;
+import org.blockartistry.DynSurround.data.xface.ModConfigurationFile;
 import org.blockartistry.lib.MyUtils;
-import org.blockartistry.lib.SoundUtils;
-
-import com.google.common.collect.Maps;
-import com.google.gson.Gson;
-
+import org.blockartistry.lib.math.MathStuff;
 import gnu.trove.impl.Constants;
 import gnu.trove.map.hash.TObjectFloatHashMap;
 import net.minecraft.client.audio.ISound;
@@ -54,7 +43,7 @@ import net.minecraft.util.ResourceLocation;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
-//@SideOnly(Side.CLIENT)
+@SideOnly(Side.CLIENT)
 public final class SoundRegistry extends Registry {
 
 	public static final float MIN_SOUNDFACTOR = 0F;
@@ -62,8 +51,6 @@ public final class SoundRegistry extends Registry {
 	public static final float DEFAULT_SOUNDFACTOR = 1F;
 
 	private static final String ARMOR_SOUND_PREFIX = DSurround.MOD_ID + ":fs.armor.";
-
-	private final static Map<ResourceLocation, SoundMetadata> soundMetadata = Maps.newHashMap();
 
 	private final List<String> cullSoundNames = new ArrayList<String>();
 	private final List<String> blockSoundNames = new ArrayList<String>();
@@ -81,10 +68,10 @@ public final class SoundRegistry extends Registry {
 		this.blockSoundNames.clear();
 		this.volumeControl.clear();
 
-		MyUtils.addAll(this.cullSoundNames, ModOptions.culledSounds);
-		MyUtils.addAll(this.blockSoundNames, ModOptions.blockedSounds);
+		MyUtils.addAll(this.cullSoundNames, ModOptions.sound.culledSounds);
+		MyUtils.addAll(this.blockSoundNames, ModOptions.sound.blockedSounds);
 
-		for (final String volume : ModOptions.soundVolumes) {
+		for (final String volume : ModOptions.sound.soundVolumes) {
 			final String[] tokens = StringUtils.split(volume, "=");
 			if (tokens.length == 2) {
 				try {
@@ -97,6 +84,11 @@ public final class SoundRegistry extends Registry {
 		}
 	}
 
+	@Override
+	public void configure(@Nonnull final ModConfigurationFile cfg) {
+		// Nothing to configure
+	}
+	
 	@Override
 	public void fini() {
 
@@ -111,7 +103,7 @@ public final class SoundRegistry extends Registry {
 	}
 
 	public boolean isSoundBlockedLogical(@Nonnull final String sound) {
-		return this.isSoundBlocked(sound) || (!ModOptions.enableArmorSounds && sound.startsWith(ARMOR_SOUND_PREFIX));
+		return this.isSoundBlocked(sound) || (!ModOptions.sound.enableArmorSounds && sound.startsWith(ARMOR_SOUND_PREFIX));
 	}
 
 	public float getVolumeScale(@Nonnull final String soundName) {
@@ -123,44 +115,9 @@ public final class SoundRegistry extends Registry {
 				: this.volumeControl.get(sound.getSoundLocation().toString());
 	}
 
-	@SideOnly(Side.CLIENT)
-	public static void initializeRegistry() {
-		final ParameterizedType TYPE = new ParameterizedType() {
-			public Type[] getActualTypeArguments() {
-				return new Type[] { String.class, SoundMetadataConfig.class };
-			}
-
-			public Type getRawType() {
-				return Map.class;
-			}
-
-			public Type getOwnerType() {
-				return null;
-			}
-		};
-
-		try (final InputStream stream = SoundRegistry.class.getResourceAsStream("/assets/dsurround/sounds.json")) {
-			if (stream != null) {
-				@SuppressWarnings("unchecked")
-				final Map<String, SoundMetadataConfig> sounds = (Map<String, SoundMetadataConfig>) new Gson()
-						.fromJson(new InputStreamReader(stream), TYPE);
-				for (final Entry<String, SoundMetadataConfig> e : sounds.entrySet()) {
-					final String soundName = e.getKey();
-					final SoundMetadata data = new SoundMetadata(e.getValue());
-					final ResourceLocation resource = new ResourceLocation(DSurround.RESOURCE_ID, soundName);
-					SoundUtils.getOrRegisterSound(resource);
-					soundMetadata.put(resource, data);
-				}
-			}
-		} catch (final Throwable t) {
-			DSurround.log().error("Unable to read the mod sound file!", t);
-		}
-
-	}
-
 	@Nullable
-	public static SoundMetadata getSoundMetadata(@Nonnull final ResourceLocation resource) {
-		return soundMetadata.get(resource);
+	public SoundMetadata getSoundMetadata(@Nonnull final ResourceLocation resource) {
+		return Sounds.getSoundMetadata(resource);
 	}
 
 }

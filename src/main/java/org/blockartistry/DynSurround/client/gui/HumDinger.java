@@ -26,7 +26,9 @@ package org.blockartistry.DynSurround.client.gui;
 
 import javax.annotation.Nonnull;
 
+import org.apache.commons.lang3.StringUtils;
 import org.blockartistry.DynSurround.DSurround;
+import org.blockartistry.DynSurround.ModOptions;
 import org.blockartistry.DynSurround.client.sound.AdhocSound;
 import org.blockartistry.DynSurround.client.sound.SoundEngine;
 import org.blockartistry.lib.random.XorShiftRandom;
@@ -36,14 +38,12 @@ import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.SoundCategory;
 import net.minecraft.util.SoundEvent;
 import net.minecraftforge.client.event.GuiOpenEvent;
-import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.relauncher.Side;
+import net.minecraftforge.fml.relauncher.SideOnly;
 
-@Mod.EventBusSubscriber(value = Side.CLIENT, modid = DSurround.MOD_ID)
+@SideOnly(Side.CLIENT)
 public final class HumDinger {
-
-	private static final String[] possibles = { "entity.experience_orb.pickup", "entity.chicken.egg" };
 
 	private static boolean hasPlayed = false;
 
@@ -51,9 +51,19 @@ public final class HumDinger {
 	public static void onGuiOpen(@Nonnull final GuiOpenEvent event) {
 		if (!hasPlayed && event.getGui() instanceof GuiMainMenu) {
 			hasPlayed = true;
-			final SoundEvent se = SoundEvent.REGISTRY
-					.getObject(new ResourceLocation(possibles[XorShiftRandom.current().nextInt(possibles.length)]));
-			SoundEngine.instance().playSound(new AdhocSound(se, SoundCategory.MASTER));
+			final String[] possibles = ModOptions.general.startupSoundList;
+			if (possibles == null || possibles.length == 0)
+				return;
+			final String res = possibles[XorShiftRandom.current().nextInt(possibles.length)];
+			if (!StringUtils.isEmpty(res)) {
+				final SoundEvent se = SoundEvent.REGISTRY.getObject(new ResourceLocation(res));
+				if (se != null)
+					SoundEngine.instance().playSound(new AdhocSound(se, SoundCategory.MASTER));
+				else
+					DSurround.log().warn("Unable to locate startup sound [%s]", res);
+			} else {
+				DSurround.log().warn("Improperly formatted startup sound list!");
+			}
 		}
 	}
 }

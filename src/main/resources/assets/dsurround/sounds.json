@@ -930,6 +930,28 @@
 			}
 		]
 	},
+	"bullfrog": {
+		"category": "ambient",
+		"credits": [
+			"§aNight Crickets & Bullfrogs.wav",
+			"sunsinger",
+			"Creative Commons Attributions 3.0 Unported"
+		],
+		"sounds": [
+			{
+				"name": "dsurround:ambient/frog/bullfrog1"
+			},
+			{
+				"name": "dsurround:ambient/frog/bullfrog2"
+			},
+			{
+				"name": "dsurround:ambient/frog/bullfrog3"
+			},
+			{
+				"name": "dsurround:ambient/frog/bullfrog4"
+			}
+		]
+	},
 	"wind": {
 		"category": "ambient",
 		"credits": [
@@ -940,6 +962,47 @@
 		"sounds": [
 			{
 				"name": "dsurround:ambient/outside/wind",
+				"stream": true
+			}
+		]
+	},
+	"desert.wind": {
+		"category": "ambient",
+		"credits": [
+			"§adesertwind1FINAL.wav",
+			"nageor",
+			"Creative Commons 0"
+		],
+		"sounds": [
+			{
+				"name": "dsurround:ambient/outside/desert_wind"
+			}
+		]
+	},
+	"savanna.day": {
+		"category": "ambient",
+		"credits": [
+			"§aMerlothPark_morning_ambiance.wav",
+			"reinsamba",
+			"Attribution"
+		],
+		"sounds": [
+			{
+				"name": "dsurround:ambient/outside/savanna_day",
+				"stream": true
+			}
+		]
+	},
+	"savanna.night": {
+		"category": "ambient",
+		"credits": [
+			"§aMerlothPark_crickets2.WAV",
+			"reinsamba",
+			"Attribution"
+		],
+		"sounds": [
+			{
+				"name": "dsurround:ambient/outside/savanna_night",
 				"stream": true
 			}
 		]
@@ -1089,6 +1152,23 @@
 			"dsurround:ambient/birds/woodpecker3",
 			"dsurround:ambient/birds/woodpecker4",
 			"dsurround:ambient/birds/woodpecker5"
+		]
+	},
+	"raptor": {
+		"category": "ambient",
+		"sounds": [
+			{
+				"name": "dsurround:ambient/birds/bald_eagle_chirp",
+				"weight": 2
+			},
+			{
+				"name": "dsurround:ambient/birds/red_tailed_hawk",
+				"weight": 1
+			},
+			{
+				"name": "dsurround:ambient/birds/red_shouldered_hawk",
+				"weight": 2
+			}
 		]
 	},
 	"crow": {
@@ -1383,7 +1463,7 @@
 		"sounds": [
 			{
 				"name": "dsurround:ambient/steve/jump",
-				"volume": 0.4
+				"volume": 0.8
 			}
 		]
 	},
@@ -1601,7 +1681,18 @@
 			}
 		]
 	},
-	"waterfall": {
+	"waterfall.0": {
+		"category": "ambient",
+		"credits": [
+			"§aWaterfall Winspit Dorset.wav",
+			"genghis attenborough",
+			"Attribution Noncommercial"
+		],
+		"sounds": [
+			"dsurround:ambient/stream/waterfall0"
+		]
+	},
+	"waterfall.1": {
 		"category": "ambient",
 		"credits": [
 			"§aRunning-water-mountain-stream.mp3",
@@ -1609,7 +1700,51 @@
 			"Attribution-NonCommercial 4.0 International (CC BY-NC 4.0)"
 		],
 		"sounds": [
-			"dsurround:ambient/stream/waterfall"
+			"dsurround:ambient/stream/waterfall1"
+		]
+	},
+	"waterfall.2": {
+		"category": "ambient",
+		"credits": [
+			"§aWaterfall",
+			"Orpheuz",
+			"Creative Commons 0"
+		],
+		"sounds": [
+			"dsurround:ambient/stream/waterfall2"
+		]
+	},
+	"waterfall.3": {
+		"category": "ambient",
+		"credits": [
+			"§aSmall Waterfall at the Mill",
+			"willstepp",
+			"Creative Commons 0"
+		],
+		"sounds": [
+			"dsurround:ambient/stream/waterfall3"
+		]
+	},
+	"waterfall.4": {
+		"category": "ambient",
+		"credits": [
+			"§a Waterfall, Large, A.wav",
+			"InspectorJ",
+			"Attribution"
+		],
+		"sounds": [
+			"dsurround:ambient/stream/waterfall4"
+		]
+	},
+	"waterfall.5": {
+		"category": "ambient",
+		"credits": [
+			"§aWaterfall, Small, B.wav",
+			"InspectorJ",
+			"Attribution"
+		],
+		"sounds": [
+			"dsurround:ambient/stream/waterfall5"
 		]
 	},
 	"village.rooster": {
@@ -1634,20 +1769,10 @@
 		],
 		"sounds": [
 			{
-				"name": "dsurround:ambient/village/anvil1",
-				"weight": 20
+				"name": "dsurround:ambient/village/anvil1"
 			},
 			{
-				"name": "dsurround:ambient/village/anvil2",
-				"weight": 20
-			},
-			{
-				"name": "dsurround:ambient/village/anvil3",
-				"weight": 10
-			},
-			{
-				"name": "dsurround:ambient/village/anvil4",
-				"weight": 10
+				"name": "dsurround:ambient/village/anvil2"
 			}
 		]
 	},
@@ -1714,6 +1839,15 @@
 			"dsurround:ambient/items/bow_pull5"
 		]
 	},
+	"bow.loose": {
+		"category": "player",
+		"sounds": [
+			"dsurround:ambient/items/bow_loose1",
+			"dsurround:ambient/items/bow_loose2",
+			"dsurround:ambient/items/bow_loose3",
+			"dsurround:ambient/items/bow_loose4"
+		]
+	},
 	"sword.equip": {
 		"category": "player",
 		"sounds": [
@@ -1753,6 +1887,24 @@
 		]
 	},
 	"utility.equip": {
+		"category": "player",
+		"sounds": [
+			"dsurround:ambient/items/utility_draw"
+		]
+	},
+	"shield.equip": {
+		"category": "player",
+		"sounds": [
+			"dsurround:ambient/items/tool_draw"
+		]
+	},
+	"shield.use": {
+		"category": "player",
+		"sounds": [
+			"dsurround:ambient/items/tool_draw"
+		]
+	},
+	"food.equip": {
 		"category": "player",
 		"sounds": [
 			"dsurround:ambient/items/utility_draw"
@@ -1813,6 +1965,12 @@
 				"name": "dsurround:ambient/battle/retribution",
 				"stream": true
 			}
+		]
+	},
+	"silence": {
+		"category": "ambient",
+		"sounds": [
+			"dsurround:ambient/silence"
 		]
 	}
 }

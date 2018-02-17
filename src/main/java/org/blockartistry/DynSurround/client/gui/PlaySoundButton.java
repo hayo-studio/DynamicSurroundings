@@ -26,9 +26,9 @@ package org.blockartistry.DynSurround.client.gui;
 
 import javax.annotation.Nonnull;
 
-import org.blockartistry.DynSurround.client.sound.BasicSound;
 import org.blockartistry.DynSurround.client.sound.MusicTickerReplacement;
 import org.blockartistry.DynSurround.client.sound.SoundEngine;
+import org.blockartistry.lib.sound.BasicSound;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.audio.MusicTicker;
@@ -44,7 +44,7 @@ public class PlaySoundButton extends GuiButtonExt {
 	private BasicSound<?> playingSound;
 
 	public PlaySoundButton(final int id, @Nonnull final String sound) {
-		super(id, 0, 0, 34, 18, GuiConstants.TEXT_PLAY);
+		super(id, 0, 0, 68, 18, GuiConstants.TEXT_PLAY);
 		
 		this.soundEngine = SoundEngine.instance();
 		this.soundResource = sound;
@@ -59,8 +59,8 @@ public class PlaySoundButton extends GuiButtonExt {
 	}
 	
 	@Override
-	public void drawButton(@Nonnull final Minecraft mc, final int x, final int y) {
-		super.drawButton(mc, x, y);
+	public void drawButton(@Nonnull final Minecraft mc, final int x, final int y, final float partial) {
+		super.drawButton(mc, x, y, partial);
 		
 		if (this.playingSound != null) {
 			if (!this.soundEngine.isSoundPlaying(this.playingSound)) {

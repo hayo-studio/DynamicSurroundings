@@ -44,11 +44,11 @@ import net.minecraft.entity.player.EntityPlayer.EnumChatVisibility;
 import net.minecraft.util.EnumHandSide;
 import net.minecraft.util.SoundCategory;
 import net.minecraftforge.client.settings.KeyModifier;
-import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.relauncher.Side;
+import net.minecraftforge.fml.relauncher.SideOnly;
 
-@Mod.EventBusSubscriber(value = Side.CLIENT, modid = Presets.MOD_ID)
+@SideOnly(Side.CLIENT)
 public class MinecraftConfigHandler {
 
 	private final static String MINECRAFT = "minecraft";
@@ -61,7 +61,7 @@ public class MinecraftConfigHandler {
 		final GameSettings settings = Minecraft.getMinecraft().gameSettings;
 
 		for (final Options option : GameSettings.Options.values()) {
-			final String theName = option.getEnumString();
+			final String theName = option.getTranslation();
 			switch (option) {
 			case INVERT_MOUSE:
 				data.setBoolean(theName, settings.invertMouse);
@@ -437,7 +437,7 @@ public class MinecraftConfigHandler {
 				mc.renderGlobal.loadRenderers();
 
 			if (refreshUnicodeFlag)
-				mc.fontRendererObj
+				mc.fontRenderer
 						.setUnicodeFlag(mc.getLanguageManager().isCurrentLocaleUnicode() || settings.forceUnicodeFont);
 
 			if (refreshResources)
@@ -456,7 +456,7 @@ public class MinecraftConfigHandler {
 	@Nullable
 	private static Options getOptionByName(@Nonnull final String name) {
 		for (final Options o : Options.values())
-			if (name.equals(o.getEnumString()))
+			if (name.equals(o.getTranslation()))
 				return o;
 		return null;
 	}

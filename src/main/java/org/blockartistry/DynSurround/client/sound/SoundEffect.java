@@ -30,21 +30,21 @@ import javax.annotation.Nullable;
 
 import org.apache.commons.lang3.StringUtils;
 import org.blockartistry.DynSurround.DSurround;
+import org.blockartistry.DynSurround.client.ClientRegistry;
 import org.blockartistry.DynSurround.client.fx.ISpecialEffect;
 import org.blockartistry.DynSurround.client.handlers.SoundEffectHandler;
 import org.blockartistry.DynSurround.data.xface.SoundConfig;
 import org.blockartistry.DynSurround.data.xface.SoundType;
-import org.blockartistry.DynSurround.registry.Evaluator;
+import org.blockartistry.DynSurround.expression.ExpressionEngine;
 import org.blockartistry.DynSurround.registry.SoundMetadata;
-import org.blockartistry.DynSurround.registry.SoundRegistry;
 import org.blockartistry.lib.BlockStateProvider;
-import org.blockartistry.lib.SoundUtils;
 import org.blockartistry.lib.WeightTable;
 import org.blockartistry.lib.WeightTable.IEntrySource;
 import org.blockartistry.lib.WeightTable.IItem;
+import org.blockartistry.lib.sound.BasicSound;
 
 import net.minecraft.block.state.IBlockState;
-import net.minecraft.entity.EntityLivingBase;
+import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.SoundCategory;
@@ -78,7 +78,7 @@ public final class SoundEffect implements ISpecialEffect, IEntrySource<SoundEffe
 	protected SoundEffect(final ResourceLocation resource, final SoundCategory category, final float volume,
 			final float pitch, final int repeatDelay, final boolean variable) {
 		this.soundName = resource.toString();
-		this.sound = SoundUtils.getOrRegisterSound(resource);
+		this.sound = Sounds.getSound(resource);
 		this.volume = volume;
 		this.pitch = pitch;
 		this.conditions = StringUtils.EMPTY;
@@ -139,6 +139,10 @@ public final class SoundEffect implements ISpecialEffect, IEntrySource<SoundEffe
 		this.soundTitle = title;
 		return this;
 	}
+	
+	public String getSoundName() {
+		return this.soundName;
+	}
 
 	public String getSoundTitle() {
 		return this.soundTitle;
@@ -182,12 +186,12 @@ public final class SoundEffect implements ISpecialEffect, IEntrySource<SoundEffe
 	}
 
 	@SideOnly(Side.CLIENT)
-	public BasicSound<?> createSound(@Nonnull final EntityPlayer player) {
+	public BasicSound<?> createSound(@Nonnull final Entity player) {
 		return new SpotSound(player, this);
 	}
 
 	@SideOnly(Side.CLIENT)
-	public BasicSound<?> createSound(@Nonnull final EntityLivingBase player, final boolean fadeIn) {
+	public BasicSound<?> createSound(@Nonnull final Entity player, final boolean fadeIn) {
 		if (player instanceof EntityPlayer)
 			return new PlayerTrackingSound(this, fadeIn);
 		return new TrackingSound(player, this, fadeIn);
@@ -235,7 +239,7 @@ public final class SoundEffect implements ISpecialEffect, IEntrySource<SoundEffe
 
 	// IEntrySource<T>
 	public boolean matches() {
-		return Evaluator.check(this.conditions);
+		return ExpressionEngine.instance().check(this.conditions);
 	}
 
 	public String toString() {
@@ -304,7 +308,7 @@ public final class SoundEffect implements ISpecialEffect, IEntrySource<SoundEffe
 			} else {
 				// There isn't an override - defer to the category info in
 				// the sounds.json.
-				final SoundMetadata meta = SoundRegistry.getSoundMetadata(resource);
+				final SoundMetadata meta = ClientRegistry.SOUND.getSoundMetadata(resource);
 				if (meta != null) {
 					sc = meta.getCategory();
 				} else {

@@ -27,15 +27,19 @@ package org.blockartistry.DynSurround.registry;
 import javax.annotation.Nonnull;
 
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.biome.Biome.TempCategory;
+import net.minecraftforge.fml.relauncher.Side;
+import net.minecraftforge.fml.relauncher.SideOnly;
 
 /*
  * Special fake biome to prevent strange stack issues if
  * a bogus biome comes into the registry.
  */
+@SideOnly(Side.CLIENT)
 public class WTFFakeBiome extends FakeBiome {
 
 	public WTFFakeBiome() {
-		super("(WTF Just Happened)");
+		super("WTFJustHappened");
 	}
 
 	@Override

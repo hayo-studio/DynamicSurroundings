@@ -29,18 +29,15 @@ import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import org.blockartistry.DynSurround.DSurround;
 import org.blockartistry.DynSurround.client.footsteps.interfaces.IAcoustic;
-import org.blockartistry.DynSurround.client.footsteps.system.Isolator;
-import org.blockartistry.DynSurround.client.handlers.EnvironStateHandler.EnvironState;
 import org.blockartistry.DynSurround.facade.FacadeHelper;
 import org.blockartistry.DynSurround.registry.BlockInfo;
+import org.blockartistry.lib.BlockNameUtil;
+import org.blockartistry.lib.BlockNameUtil.NameResult;
 import org.blockartistry.lib.MCHelper;
 import gnu.trove.map.hash.THashMap;
 import net.minecraft.block.Block;
@@ -48,14 +45,14 @@ import net.minecraft.block.state.IBlockState;
 import net.minecraft.init.Blocks;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.World;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
 @SideOnly(Side.CLIENT)
 public class BlockMap {
-	private static final Pattern pattern = Pattern.compile("([^:]+:[^^+]+)\\^?(\\d+)?\\+?(\\w+)?");
 
-	private final Isolator isolator;
+	private final AcousticsManager acousticsManager;
 	private final BlockAcousticMap metaMap = new BlockAcousticMap();
 	private Map<Substrate, BlockAcousticMap> substrateMap = new EnumMap<Substrate, BlockAcousticMap>(Substrate.class);
 
@@ -84,6 +81,18 @@ public class BlockMap {
 		entries.add(new MacroEntry("foliage", "straw"));
 		macros.put("#sapling", entries);
 		macros.put("#reed", entries);
+
+		entries = new ArrayList<MacroEntry>();
+		entries.add(new MacroEntry(null, "leaves"));
+		entries.add(new MacroEntry("messy", "MESSY_GROUND"));
+		entries.add(new MacroEntry("foliage", "brush"));
+		macros.put("#plant", entries);
+
+		entries = new ArrayList<MacroEntry>();
+		entries.add(new MacroEntry(null, "leaves"));
+		entries.add(new MacroEntry("messy", "MESSY_GROUND"));
+		entries.add(new MacroEntry("foliage", "brush_straw_transition"));
+		macros.put("#bush", entries);
 
 		entries = new ArrayList<MacroEntry>();
 		entries.add(new MacroEntry(null, "NOT_EMITTER"));
@@ -121,25 +130,32 @@ public class BlockMap {
 		macros.put("#beets", entries);
 
 		entries = new ArrayList<MacroEntry>();
+		entries.add(new MacroEntry(null, "NOT_EMITTER"));
 		entries.add(new MacroEntry("bigger", "bluntwood"));
 		macros.put("#fence", entries);
 	}
 
-	public BlockMap(@Nonnull final Isolator isolator) {
-		this.isolator = isolator;
+	public BlockMap(@Nonnull final AcousticsManager manager) {
+		this.acousticsManager = manager;
 		this.metaMap.put(new BlockInfo(Blocks.AIR), AcousticsManager.NOT_EMITTER);
 	}
 
 	@Nullable
-	public IAcoustic[] getBlockAcoustics(@Nonnull final IBlockState state, @Nonnull final BlockPos pos) {
-		final IBlockState trueState = FacadeHelper.resolveState(state, EnvironState.getWorld(), pos, EnumFacing.UP);
+	public boolean hasAcoustics(@Nonnull final IBlockState state) {
+		final IAcoustic[] a = this.metaMap.getBlockAcoustics(state);
+		return a != null && a != BlockAcousticMap.NO_ACOUSTICS;
+	}
+
+	@Nullable
+	public IAcoustic[] getBlockAcoustics(@Nonnull final World world, @Nonnull final IBlockState state, @Nonnull final BlockPos pos) {
+		final IBlockState trueState = FacadeHelper.resolveState(state, world, pos, EnumFacing.UP);
 		return this.metaMap.getBlockAcoustics(trueState);
 	}
 
 	@Nullable
-	public IAcoustic[] getBlockSubstrateAcoustics(@Nonnull final IBlockState state, @Nonnull final BlockPos pos,
+	public IAcoustic[] getBlockSubstrateAcoustics(@Nonnull final World world, @Nonnull final IBlockState state, @Nonnull final BlockPos pos,
 			@Nonnull final Substrate substrate) {
-		final IBlockState trueState = FacadeHelper.resolveState(state, EnvironState.getWorld(), pos, EnumFacing.UP);
+		final IBlockState trueState = FacadeHelper.resolveState(state, world, pos, EnumFacing.UP);
 		final BlockAcousticMap sub = this.substrateMap.get(substrate);
 		return sub != null ? sub.getBlockAcousticsWithSpecial(trueState) : null;
 	}
@@ -148,7 +164,7 @@ public class BlockMap {
 			@Nonnull final String value) {
 
 		final Substrate s = Substrate.get(substrate);
-		final IAcoustic[] acoustics = this.isolator.getAcoustics().compileAcoustics(value);
+		final IAcoustic[] acoustics = this.acousticsManager.compileAcoustics(value);
 
 		if (s == null) {
 			this.metaMap.put(new BlockInfo(block, meta), acoustics);
@@ -173,9 +189,9 @@ public class BlockMap {
 	}
 
 	public void register(@Nonnull final String key, @Nonnull final String value) {
-		final Matcher matcher = pattern.matcher(key);
-		if (matcher.matches()) {
-			final String blockName = matcher.group(1);
+		final NameResult result = BlockNameUtil.parseBlockName(key);
+		if (result != null) {
+			final String blockName = result.getBlockName();
 			final Block block = MCHelper.getBlockByName(blockName);
 			if (block == null) {
 				DSurround.log().debug("Unable to locate block for blockMap '%s'", blockName);
@@ -184,10 +200,14 @@ public class BlockMap {
 			} else if (value.startsWith("#")) {
 				expand(block, value);
 			} else {
-				final int meta = matcher.group(2) == null
-						? (MCHelper.hasVariants(block) ? BlockInfo.GENERIC : BlockInfo.NO_SUBTYPE)
-						: Integer.parseInt(matcher.group(2));
-				final String substrate = matcher.group(3);
+				final int meta;
+				if (result.isGeneric())
+					meta = BlockInfo.GENERIC;
+				else if (result.noMetadataSpecified())
+					meta = MCHelper.hasVariants(block) ? BlockInfo.GENERIC : BlockInfo.NO_SUBTYPE;
+				else
+					meta = result.getMetadata();
+				final String substrate = result.getExtras();
 				put(block, meta, substrate, value);
 			}
 		} else {
@@ -209,10 +229,10 @@ public class BlockMap {
 		return builder.toString();
 	}
 
-	public void collectData(@Nonnull final IBlockState state, @Nonnull final BlockPos pos,
+	public void collectData(@Nonnull final World world, @Nonnull final IBlockState state, @Nonnull final BlockPos pos,
 			@Nonnull final List<String> data) {
 
-		final IAcoustic[] temp = getBlockAcoustics(state, pos);
+		final IAcoustic[] temp = getBlockAcoustics(world, state, pos);
 		if (temp != null)
 			data.add(combine(temp));
 

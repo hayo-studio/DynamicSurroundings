@@ -24,34 +24,31 @@
 
 package org.blockartistry.DynSurround.client.footsteps.system;
 
-import java.util.Random;
-
 import javax.annotation.Nonnull;
 
 import org.blockartistry.DynSurround.client.footsteps.interfaces.EventType;
-import org.blockartistry.lib.random.XorShiftRandom;
+import org.blockartistry.DynSurround.registry.Variator;
 
-import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.entity.EntityLivingBase;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
 @SideOnly(Side.CLIENT)
 public class GeneratorQP extends Generator {
-	
-	private final Random rand = XorShiftRandom.current();
-	private final int USE_FUNCTION = 2;
+
+	private static final int USE_FUNCTION = 2;
 
 	private int hoof = 0;
 	private float nextWalkDistanceMultiplier = 0.05f;
 
-	public GeneratorQP(@Nonnull final Isolator isolator) {
-		super(isolator);
+	public GeneratorQP(@Nonnull final Variator var) {
+		super(var);
 	}
 
 	@Override
-	protected void stepped(@Nonnull final EntityPlayer ply, @Nonnull final EventType event) {
+	protected void stepped(@Nonnull final EntityLivingBase ply, @Nonnull final EventType event) {
 		if (this.hoof == 0 || this.hoof == 2) {
-			this.nextWalkDistanceMultiplier = this.rand.nextFloat();
+			this.nextWalkDistanceMultiplier = RANDOM.nextFloat();
 		}
 
 		if (this.hoof >= 3) {
@@ -70,46 +67,56 @@ public class GeneratorQP extends Generator {
 		}
 	}
 
+	protected float walkFunction2(final float distance) {
+		final float overallMultiplier = 2.5f / 2;
+		final float ndm = 0.2F;
+		float pond = this.nextWalkDistanceMultiplier;
+		pond *= pond;
+		pond *= ndm;
+		if (this.hoof == 1 || this.hoof == 3) {
+			return distance * pond * overallMultiplier;
+		}
+		return distance * (1 - pond) * overallMultiplier;
+	}
+
+	protected float walkFunction1(final float distance) {
+		final float overallMultiplier = 1.4f;
+		final float ndm = 0.5f;
+
+		if (this.hoof == 1 || this.hoof == 3) {
+			return distance * (ndm + this.nextWalkDistanceMultiplier * ndm * 0.5f) * overallMultiplier;
+		}
+		return distance * (1 - ndm) * overallMultiplier;
+	}
+
+	protected float walkFunction0(final float distance) {
+		final float overallMultiplier = 1.5f;
+		final float ndm = 0.425f + nextWalkDistanceMultiplier * 0.15f;
+
+		if (this.hoof == 1 || this.hoof == 3) {
+			return distance * ndm * overallMultiplier;
+		}
+		return distance * (1 - ndm) * overallMultiplier;
+	}
+
 	@Override
 	protected float reevaluateDistance(@Nonnull final EventType event, @Nonnull final float distance) {
 		float ret = distance;
-		if (event == EventType.WALK) {
-			if (this.USE_FUNCTION == 2) {
-				final float overallMultiplier = 1.85f / 2;
-				final float ndm = 0.2f;
-				float pond = this.nextWalkDistanceMultiplier;
-				pond *= pond;
-				pond *= ndm;
-				if (this.hoof == 1 || this.hoof == 3) {
-					return ret * pond * overallMultiplier;
-				}
-				return ret * (1 - pond) * overallMultiplier;
-			} else if (this.USE_FUNCTION == 1) {
-				final float overallMultiplier = 1.4f;
-				final float ndm = 0.5f;
-
-				if (this.hoof == 1 || this.hoof == 3) {
-					return ret * (ndm + this.nextWalkDistanceMultiplier * ndm * 0.5f) * overallMultiplier;
-				}
-				return ret * (1 - ndm) * overallMultiplier;
-			} else if (this.USE_FUNCTION == 0) {
-				final float overallMultiplier = 1.5f;
-				final float ndm = 0.425f + nextWalkDistanceMultiplier * 0.15f;
-
-				if (this.hoof == 1 || this.hoof == 3) {
-					return ret * ndm * overallMultiplier;
-				}
-				return ret * (1 - ndm) * overallMultiplier;
+		if (event == EventType.WALK)
+			switch (USE_FUNCTION) {
+			case 0:
+				return walkFunction0(distance);
+			case 1:
+				return walkFunction1(distance);
+			default:
+				return walkFunction2(distance);
 			}
-		}
 
-		if (event == EventType.RUN && this.hoof == 0) {
+		if (event == EventType.RUN && this.hoof == 0)
 			return ret * 0.8f;
-		}
 
-		if (event == EventType.RUN) {
+		if (event == EventType.RUN)
 			return ret * 0.3f;
-		}
 
 		return ret;
 	}

@@ -33,22 +33,24 @@ import javax.annotation.Nonnull;
 import org.blockartistry.DynSurround.DSurround;
 import org.blockartistry.DynSurround.ModOptions;
 import org.blockartistry.DynSurround.client.handlers.EnvironStateHandler.EnvironState;
-import org.blockartistry.lib.DiurnalUtils;
+import org.blockartistry.lib.ItemStackUtil;
 import org.blockartistry.lib.Localization;
-import org.blockartistry.lib.MathStuff;
+import org.blockartistry.lib.MinecraftClock;
 import org.blockartistry.lib.PlayerUtils;
-import org.blockartistry.lib.DiurnalUtils.DayCycle;
 import org.blockartistry.lib.gui.TextPanel;
 import org.blockartistry.lib.gui.Panel.Reference;
+import org.blockartistry.lib.math.MathStuff;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.client.gui.ScaledResolution;
 import net.minecraft.client.renderer.GlStateManager;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.item.EntityItemFrame;
 import net.minecraft.init.Items;
+import net.minecraft.item.ItemStack;
 import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.text.TextFormatting;
 import net.minecraftforge.client.event.RenderGameOverlayEvent;
 import net.minecraftforge.client.event.RenderGameOverlayEvent.ElementType;
@@ -64,20 +66,21 @@ public class CompassHUD extends GuiOverlay {
 
 	private static final float TEXT_LINE_START = 1.5F;
 
-	private static final String NO_SKY = Localization.format("format.NoSky");
-	private static final String SUNRISE = Localization.format("format.Sunrise");
-	private static final String SUNSET = Localization.format("format.Sunset");
-	private static final String DAYTIME = Localization.format("format.Daytime");
-	private static final String NIGHTTIME = Localization.format("format.Nighttime");
-
 	private static enum Style {
-		BAND_0(false, "textures/gui/compass/compass.png", BAND_WIDTH, BAND_HEIGHT), BAND_1(false,
-				"textures/gui/compass/compass.png", BAND_WIDTH,
-				BAND_HEIGHT), BAND_2(false, "textures/gui/compass/compass.png", BAND_WIDTH, BAND_HEIGHT), BAND_3(false,
-						"textures/gui/compass/compass.png", BAND_WIDTH,
-						BAND_HEIGHT), ROSE_1(true, "textures/gui/compass/compassrose1.png", ROSE_DIM, ROSE_DIM), ROSE_2(
-								true, "textures/gui/compass/compassrose2.png", ROSE_DIM,
-								ROSE_DIM), ROSE_3(true, "textures/gui/compass/compassrose3.png", ROSE_DIM, ROSE_DIM);
+		//
+		BAND_0(false, "textures/gui/compass/compass.png", BAND_WIDTH, BAND_HEIGHT),
+		//
+		BAND_1(false, "textures/gui/compass/compass.png", BAND_WIDTH, BAND_HEIGHT),
+		//
+		BAND_2(false, "textures/gui/compass/compass.png", BAND_WIDTH, BAND_HEIGHT),
+		//
+		BAND_3(false, "textures/gui/compass/compass.png", BAND_WIDTH, BAND_HEIGHT),
+		//
+		ROSE_1(true, "textures/gui/compass/compassrose1.png", ROSE_DIM, ROSE_DIM),
+		//
+		ROSE_2(true, "textures/gui/compass/compassrose2.png", ROSE_DIM, ROSE_DIM),
+		//
+		ROSE_3(true, "textures/gui/compass/compassrose3.png", ROSE_DIM, ROSE_DIM);
 
 		private final boolean isRose;
 		private final ResourceLocation texture;
@@ -114,14 +117,18 @@ public class CompassHUD extends GuiOverlay {
 		}
 	}
 
-	private final TextPanel textPanel = new TextPanel();
+	private final TextPanel textPanel;
 	private boolean showCompass = false;
+
+	public CompassHUD() {
+		this.textPanel = new TextPanel();
+	}
 
 	@Nonnull
 	protected String getLocationString() {
 		final BlockPos pos = EnvironState.getPlayerPosition();
-		return TextFormatting.AQUA
-				+ String.format(Locale.getDefault(), ModOptions.compassCoordFormat, pos.getX(), pos.getY(), pos.getZ());
+		return TextFormatting.AQUA + String.format(Locale.getDefault(), ModOptions.compass.compassCoordFormat,
+				pos.getX(), pos.getY(), pos.getZ());
 	}
 
 	@Nonnull
@@ -130,28 +137,20 @@ public class CompassHUD extends GuiOverlay {
 	}
 
 	protected boolean showCompass() {
-		return ModOptions.enableCompass && PlayerUtils.isHolding(EnvironState.getPlayer(), Items.COMPASS);
+		return ModOptions.compass.enableCompass && PlayerUtils.isHolding(EnvironState.getPlayer(), Items.COMPASS);
 	}
 
 	protected boolean showClock() {
-		return ModOptions.enableClock && PlayerUtils.isHolding(EnvironState.getPlayer(), Items.CLOCK);
-	}
-
-	@Nonnull
-	private static String diurnalName() {
-		final DayCycle cycle = DiurnalUtils.getCycle(EnvironState.getWorld());
-		switch (cycle) {
-		case NO_SKY:
-			return CompassHUD.NO_SKY;
-		case SUNRISE:
-			return CompassHUD.SUNRISE;
-		case SUNSET:
-			return CompassHUD.SUNSET;
-		case DAYTIME:
-			return CompassHUD.DAYTIME;
-		default:
-			return CompassHUD.NIGHTTIME;
+		if (ModOptions.compass.enableClock) {
+			if (PlayerUtils.isHolding(EnvironState.getPlayer(), Items.CLOCK))
+				return true;
+			final Entity e = PlayerUtils.entityImLookingAt(EnvironState.getPlayer());
+			if (e instanceof EntityItemFrame) {
+				final ItemStack stack = ((EntityItemFrame) e).getDisplayedItem();
+				return ItemStackUtil.isValidItemStack(stack) && stack.getItem() == Items.CLOCK;
+			}
 		}
+		return false;
 	}
 
 	@Override
@@ -178,9 +177,11 @@ public class CompassHUD extends GuiOverlay {
 				time -= elapsedMinutes * 60000;
 				final int elapsedSeconds = (int) (time / 1000);
 
-				text.add(EnvironState.getClock().toString());
-				text.add(diurnalName());
-				text.add(Localization.format("format.SessionTime", elapsedHours, elapsedMinutes, elapsedSeconds));
+				final MinecraftClock clock = EnvironState.getClock();
+				text.add(clock.getFormattedTime());
+				text.add(clock.getTimeOfDay());
+				text.add(Localization.format("dsurround.format.SessionTime", elapsedHours, elapsedMinutes,
+						elapsedSeconds));
 			}
 
 			if (text.size() > 0)
@@ -195,34 +196,33 @@ public class CompassHUD extends GuiOverlay {
 			return;
 
 		final Minecraft mc = Minecraft.getMinecraft();
-		final FontRenderer font = mc.fontRendererObj;
+		final FontRenderer font = mc.fontRenderer;
 
 		final ScaledResolution resolution = event.getResolution();
 		final int centerX = (resolution.getScaledWidth() + 1) / 2;
 		final int centerY = (resolution.getScaledHeight() + 1) / 2;
 
-		this.textPanel.setAlpha(ModOptions.compassTransparency);
+		this.textPanel.setAlpha(ModOptions.compass.compassTransparency);
 		this.textPanel.render(centerX, centerY + (int) (font.FONT_HEIGHT * TEXT_LINE_START), Reference.TOP_CENTER);
 
-		final Style style = Style.getStyle(ModOptions.compassStyle);
+		final Style style = Style.getStyle(ModOptions.compass.compassStyle);
 		mc.getTextureManager().bindTexture(style.getTextureResource());
 
-		GlStateManager.color(1F, 1F, 1F, ModOptions.compassTransparency);
-
-		if (this.showCompass)
+		if (this.showCompass) {
+			GlStateManager.color(1F, 1F, 1F, ModOptions.compass.compassTransparency);
 			if (!style.isRose()) {
 
-				final int direction = MathHelper.floor(((mc.player.rotationYaw * 256F) / 360F) + 0.5D) & 255;
+				final int direction = MathStuff.floor(((mc.player.rotationYaw * 256F) / 360F) + 0.5D) & 255;
 				final int x = (resolution.getScaledWidth() - style.getWidth() + 1) / 2;
 				final int y = (resolution.getScaledHeight() - style.getHeight() + 1) / 2 - style.getHeight();
 
 				if (direction < 128)
-					drawTexturedModalRect(x, y, direction, (ModOptions.compassStyle * (style.getHeight() * 2)),
+					drawTexturedModalRect(x, y, direction, (ModOptions.compass.compassStyle * (style.getHeight() * 2)),
 							style.getWidth(), style.getHeight());
 				else
 					drawTexturedModalRect(x, y, direction - 128,
-							(ModOptions.compassStyle * (style.getHeight() * 2)) + style.getHeight(), style.getWidth(),
-							style.getHeight());
+							(ModOptions.compass.compassStyle * (style.getHeight() * 2)) + style.getHeight(),
+							style.getWidth(), style.getHeight());
 			} else {
 				GlStateManager.pushMatrix();
 				GlStateManager.translate(centerX, centerY - BAND_HEIGHT * 2.5F, 0);
@@ -233,6 +233,7 @@ public class CompassHUD extends GuiOverlay {
 				drawTexturedModalRect(x, y, 0, 0, style.getWidth(), style.getHeight());
 				GlStateManager.popMatrix();
 			}
+		}
 
 		GlStateManager.color(1F, 1F, 1F, 1F);
 	}

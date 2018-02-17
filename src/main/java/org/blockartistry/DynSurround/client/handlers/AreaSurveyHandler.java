@@ -31,14 +31,14 @@ import java.util.List;
 import javax.annotation.Nonnull;
 
 import org.blockartistry.DynSurround.ModOptions;
+import org.blockartistry.DynSurround.client.ClientRegistry;
 import org.blockartistry.DynSurround.client.handlers.EnvironStateHandler.EnvironState;
 import org.blockartistry.DynSurround.client.handlers.scanners.AlwaysOnBlockEffectScanner;
 import org.blockartistry.DynSurround.client.handlers.scanners.RandomBlockEffectScanner;
 import org.blockartistry.DynSurround.registry.BiomeInfo;
-import org.blockartistry.DynSurround.registry.BiomeRegistry;
-import org.blockartistry.DynSurround.registry.RegistryManager;
-import org.blockartistry.DynSurround.registry.RegistryManager.RegistryType;
-import org.blockartistry.lib.MathStuff;
+import org.blockartistry.lib.BlockStateProvider;
+import org.blockartistry.lib.WorldUtils;
+import org.blockartistry.lib.math.MathStuff;
 
 import gnu.trove.map.custom_hash.TObjectIntCustomHashMap;
 import gnu.trove.strategy.IdentityHashingStrategy;
@@ -53,8 +53,132 @@ import net.minecraftforge.fml.relauncher.SideOnly;
 @SideOnly(Side.CLIENT)
 public final class AreaSurveyHandler extends EffectHandlerBase {
 
-	private static final int BIOME_SURVEY_RANGE = 6;
+	private static final int BIOME_SURVEY_RANGE = 20;
 	private static final int INSIDE_SURVEY_RANGE = 3;
+
+	private static final Cell[] cells;
+	private static final float TOTAL_POINTS;
+
+	// Used to throttle processing
+	private static final int SURVEY_INTERVAL = 2;
+
+	private static int biomeArea;
+	private static final TObjectIntCustomHashMap<BiomeInfo> weights = new TObjectIntCustomHashMap<BiomeInfo>(
+			IdentityHashingStrategy.INSTANCE);
+	private static final BlockPos.MutableBlockPos mutable = new BlockPos.MutableBlockPos();
+
+	// "Finger print" of the last area survey.
+	private static BiomeInfo surveyedBiome = null;
+	private static int surveyedDimension = 0;
+	private static BlockPos surveyedPosition = BlockPos.ORIGIN;
+
+	private static final float INSIDE_THRESHOLD = 1.0F - 65.0F / 176.0F;
+	private static float ceilingCoverageRatio = 0.0F;
+	private static boolean reallyInside = false;
+
+	protected final RandomBlockEffectScanner effects = new RandomBlockEffectScanner(
+			ModOptions.general.specialEffectRange);
+	protected final AlwaysOnBlockEffectScanner alwaysOn = new AlwaysOnBlockEffectScanner(
+			ModOptions.general.specialEffectRange);
+
+	static {
+
+		final List<Cell> cellList = new ArrayList<Cell>();
+		// Build our cell map
+		for (int x = -INSIDE_SURVEY_RANGE; x <= INSIDE_SURVEY_RANGE; x++)
+			for (int z = -INSIDE_SURVEY_RANGE; z <= INSIDE_SURVEY_RANGE; z++)
+				cellList.add(new Cell(new Vec3i(x, 0, z), INSIDE_SURVEY_RANGE));
+
+		// Sort so the highest score cells are first
+		Collections.sort(cellList);
+		cells = cellList.toArray(new Cell[0]);
+
+		float totalPoints = 0.0F;
+		for (final Cell c : cellList)
+			totalPoints += c.potentialPoints();
+		TOTAL_POINTS = totalPoints;
+	}
+
+	public static int getBiomeArea() {
+		return biomeArea;
+	}
+
+	public static boolean isReallyInside() {
+		return reallyInside;
+	}
+
+	public static TObjectIntCustomHashMap<BiomeInfo> getBiomes() {
+		return weights;
+	}
+
+	private static void doCeilingCoverageRatio() {
+		final BlockPos pos = EnvironState.getPlayerPosition();
+		float score = 0.0F;
+		for (int i = 0; i < cells.length; i++)
+			score += cells[i].score(pos);
+
+		ceilingCoverageRatio = 1.0F - (score / TOTAL_POINTS);
+		reallyInside = ceilingCoverageRatio > INSIDE_THRESHOLD;
+	}
+
+	public AreaSurveyHandler() {
+		super("Area Survey");
+	}
+
+	/*
+	 * Perform a biome survey around the player at the specified range.
+	 */
+	private void doSurvey() {
+		biomeArea = 0;
+		weights.clear();
+
+		if (EnvironState.getPlayerBiome().isFake()) {
+			biomeArea = 1;
+			weights.put(EnvironState.getPlayerBiome(), 1);
+		} else {
+			final World world = EnvironState.getWorld();
+			final BlockStateProvider provider = WorldUtils.getDefaultBlockStateProvider().setWorld(world);
+
+			for (int dX = -BIOME_SURVEY_RANGE; dX <= BIOME_SURVEY_RANGE; dX++)
+				for (int dZ = -BIOME_SURVEY_RANGE; dZ <= BIOME_SURVEY_RANGE; dZ++) {
+					biomeArea++;
+					mutable.setPos(surveyedPosition.getX() + dX, surveyedPosition.getY(), surveyedPosition.getZ() + dZ);
+					final BiomeInfo biome = ClientRegistry.BIOME.get(provider.getBiome(mutable));
+					weights.adjustOrPutValue(biome, 1, 1);
+				}
+		}
+	}
+
+	@Override
+	public void process(@Nonnull final EntityPlayer player) {
+
+		this.effects.update();
+		this.alwaysOn.update();
+
+		final BlockPos position = EnvironState.getPlayerPosition();
+
+		if (surveyedBiome != EnvironState.getPlayerBiome() || surveyedDimension != EnvironState.getDimensionId()
+				|| surveyedPosition.compareTo(position) != 0) {
+			surveyedBiome = EnvironState.getPlayerBiome();
+			surveyedDimension = EnvironState.getDimensionId();
+			surveyedPosition = position;
+			doSurvey();
+		}
+
+		if (EnvironState.getTickCounter() % SURVEY_INTERVAL == 0)
+			doCeilingCoverageRatio();
+	}
+
+	@Override
+	public void onConnect() {
+		weights.clear();
+		MinecraftForge.EVENT_BUS.register(this.alwaysOn);
+	}
+
+	@Override
+	public void onDisconnect() {
+		MinecraftForge.EVENT_BUS.unregister(this.alwaysOn);
+	}
 
 	private static final class Cell implements Comparable<Cell> {
 
@@ -78,7 +202,7 @@ public final class AreaSurveyHandler extends EffectHandlerBase {
 		public float score(@Nonnull final BlockPos playerPos) {
 			this.working.setPos(playerPos.getX() + this.offset.getX(), playerPos.getY() + this.offset.getY(),
 					playerPos.getZ() + this.offset.getZ());
-			final int y = EnvironState.getWorld().getTopSolidOrLiquidBlock(this.working).getY();
+			final int y = WorldUtils.getTopSolidOrLiquidBlock(EnvironState.getWorld(), this.working).getY();
 			return ((y - playerPos.getY()) < 3) ? this.points : 0.0F;
 		}
 
@@ -97,134 +221,6 @@ public final class AreaSurveyHandler extends EffectHandlerBase {
 			return builder.toString();
 		}
 
-	}
-
-	private static final List<Cell> cellList = new ArrayList<Cell>();
-	private static final float TOTAL_POINTS;
-
-	static {
-		// Build our cell map
-		for (int x = -INSIDE_SURVEY_RANGE; x <= INSIDE_SURVEY_RANGE; x++)
-			for (int z = -INSIDE_SURVEY_RANGE; z <= INSIDE_SURVEY_RANGE; z++)
-				cellList.add(new Cell(new Vec3i(x, 0, z), INSIDE_SURVEY_RANGE));
-
-		// Sort so the highest score cells are first
-		Collections.sort(cellList);
-
-		float totalPoints = 0.0F;
-		for (final Cell c : cellList)
-			totalPoints += c.potentialPoints();
-		TOTAL_POINTS = totalPoints;
-	}
-
-	// Used to throttle processing
-	private static final int SURVEY_INTERVAL = 2;
-
-	private static int biomeArea;
-	private static final TObjectIntCustomHashMap<BiomeInfo> weights = new TObjectIntCustomHashMap<BiomeInfo>(
-			IdentityHashingStrategy.INSTANCE);
-	private static final BlockPos.MutableBlockPos mutable = new BlockPos.MutableBlockPos();
-
-	// "Finger print" of the last area survey.
-	private static BiomeInfo surveyedBiome = null;
-	private static int surveyedDimension = 0;
-	private static BlockPos surveyedPosition = BlockPos.ORIGIN;
-
-	private static final float INSIDE_THRESHOLD = 1.0F - 65.0F / 176.0F;
-	private static float ceilingCoverageRatio = 0.0F;
-	private static boolean reallyInside = false;
-
-	public static int getBiomeArea() {
-		return biomeArea;
-	}
-
-	public static float getCeilingCoverageRatio() {
-		return ceilingCoverageRatio;
-	}
-
-	public static boolean isReallyInside() {
-		return reallyInside;
-	}
-
-	public static TObjectIntCustomHashMap<BiomeInfo> getBiomes() {
-		return weights;
-	}
-
-	private static void doCeilingCoverageRatio() {
-		final BlockPos pos = EnvironState.getPlayerPosition();
-		float score = 0.0F;
-		for (int i = 0; i < cellList.size(); i++)
-			score += cellList.get(i).score(pos);
-
-		ceilingCoverageRatio = 1.0F - (score / TOTAL_POINTS);
-		reallyInside = ceilingCoverageRatio > INSIDE_THRESHOLD;
-	}
-
-	protected final RandomBlockEffectScanner effects = new RandomBlockEffectScanner(ModOptions.specialEffectRange);
-	protected final AlwaysOnBlockEffectScanner alwaysOn = new AlwaysOnBlockEffectScanner(ModOptions.specialEffectRange);
-	protected final BiomeRegistry registry;
-	
-	public AreaSurveyHandler() {
-		super("AreaSurveyEffectHandler");
-		
-		this.registry = RegistryManager.<BiomeRegistry>get(RegistryType.BIOME);
-	}
-	
-	/*
-	 * Perform a biome survey around the player at the specified range.
-	 */
-	private void doSurvey() {
-		biomeArea = 0;
-		weights.clear();
-
-		if (EnvironState.getPlayerBiome().isFake()) {
-			biomeArea = 1;
-			weights.put(EnvironState.getPlayerBiome(), 1);
-		} else {
-			final World world = EnvironState.getWorld();
-
-			for (int dX = -BIOME_SURVEY_RANGE; dX <= BIOME_SURVEY_RANGE; dX++)
-				for (int dZ = -BIOME_SURVEY_RANGE; dZ <= BIOME_SURVEY_RANGE; dZ++) {
-					biomeArea++;
-					mutable.setPos(surveyedPosition.getX() + dX, surveyedPosition.getY(), surveyedPosition.getZ() + dZ);
-					final BiomeInfo biome = this.registry.get(world.getBiome(mutable));
-					weights.adjustOrPutValue(biome, 1, 1);
-				}
-		}
-	}
-
-	@Override
-	public void process(@Nonnull final World world, @Nonnull final EntityPlayer player) {
-
-		this.effects.update();
-		this.alwaysOn.update();
-
-		// Only process on the correct interval
-		if (EnvironState.getTickCounter() % SURVEY_INTERVAL != 0)
-			return;
-
-		final BlockPos position = EnvironState.getPlayerPosition();
-
-		if (surveyedBiome != EnvironState.getPlayerBiome() || surveyedDimension != EnvironState.getDimensionId()
-				|| surveyedPosition.compareTo(position) != 0) {
-			surveyedBiome = EnvironState.getPlayerBiome();
-			surveyedDimension = EnvironState.getDimensionId();
-			surveyedPosition = position;
-			doSurvey();
-		}
-
-		doCeilingCoverageRatio();
-	}
-
-	@Override
-	public void onConnect() {
-		weights.clear();
-		MinecraftForge.EVENT_BUS.register(this.alwaysOn);
-	}
-	
-	@Override
-	public void onDisconnect() {
-		MinecraftForge.EVENT_BUS.unregister(this.alwaysOn);
 	}
 
 }
