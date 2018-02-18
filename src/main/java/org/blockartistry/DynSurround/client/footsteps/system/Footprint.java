@@ -24,19 +24,11 @@
 
 package org.blockartistry.DynSurround.client.footsteps.system;
 
-import java.util.Set;
-
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-import org.blockartistry.DynSurround.client.handlers.EnvironStateHandler.EnvironState;
-import org.blockartistry.DynSurround.facade.FacadeHelper;
-import org.blockartistry.lib.collections.IdentityHashSet;
-
-import net.minecraft.block.material.Material;
-import net.minecraft.block.state.IBlockState;
-import net.minecraft.util.EnumFacing;
-import net.minecraft.util.math.BlockPos;
+import org.blockartistry.DynSurround.client.footsteps.interfaces.FootprintStyle;
+import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.util.math.Vec3d;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
@@ -44,38 +36,32 @@ import net.minecraftforge.fml.relauncher.SideOnly;
 @SideOnly(Side.CLIENT)
 public class Footprint {
 
-	private static final Set<Material> FOOTPRINTABLE = new IdentityHashSet<Material>();
-	static {
-		FOOTPRINTABLE.add(Material.CLAY);
-		FOOTPRINTABLE.add(Material.GRASS);
-		FOOTPRINTABLE.add(Material.GROUND);
-		FOOTPRINTABLE.add(Material.ICE);
-		FOOTPRINTABLE.add(Material.SAND);
-		FOOTPRINTABLE.add(Material.CRAFTED_SNOW);
-		FOOTPRINTABLE.add(Material.SNOW);
-	}
-
+	private FootprintStyle style;
+	private EntityLivingBase entity;
 	private Vec3d stepLoc;
 	private boolean isRightFoot;
 	private float rotation;
+	private float scale;
 
-	public static boolean hasFootstepImprint(@Nullable final IBlockState state, @Nonnull final BlockPos pos) {
-		if (state != null) {
-			final IBlockState footstepState = FacadeHelper.resolveState(state, EnvironState.getWorld(), pos,
-					EnumFacing.UP);
-			return FOOTPRINTABLE.contains(footstepState.getMaterial());
-		}
-		return false;
-	}
-	
-	public static Footprint produce(@Nonnull final Vec3d stepLoc, final float rotation, final boolean rightFoot) {
+	public static Footprint produce(@Nonnull final FootprintStyle style, @Nonnull final EntityLivingBase entity, @Nonnull final Vec3d stepLoc, final float rotation, final float scale, final boolean rightFoot) {
 		final Footprint print = new Footprint();
+		print.style = style;
+		print.entity = entity;
 		print.stepLoc = stepLoc;
 		print.rotation = rotation;
 		print.isRightFoot = rightFoot;
+		print.scale = scale;
 		return print;
 	}
 
+	public FootprintStyle getStyle() {
+		return this.style;
+	}
+	
+	public EntityLivingBase getEntity() {
+		return this.entity;
+	}
+	
 	@Nullable
 	public Vec3d getStepLocation() {
 		return this.stepLoc;
@@ -87,6 +73,10 @@ public class Footprint {
 
 	public float getRotation() {
 		return this.rotation;
+	}
+	
+	public float getScale() {
+		return this.scale;
 	}
 
 }

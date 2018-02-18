@@ -25,95 +25,128 @@
 package org.blockartistry.DynSurround.client.handlers;
 
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
-
 import org.blockartistry.DynSurround.DSurround;
 import org.blockartistry.DynSurround.ModOptions;
+import org.blockartistry.DynSurround.client.aurora.AuroraEngineClassic;
+import org.blockartistry.DynSurround.client.aurora.AuroraEngineShader;
+import org.blockartistry.DynSurround.client.aurora.AuroraUtils;
+import org.blockartistry.DynSurround.client.aurora.IAurora;
+import org.blockartistry.DynSurround.client.aurora.IAuroraEngine;
 import org.blockartistry.DynSurround.client.handlers.EnvironStateHandler.EnvironState;
-import org.blockartistry.DynSurround.client.weather.Aurora;
-import org.blockartistry.DynSurround.registry.DimensionRegistry;
-import org.blockartistry.DynSurround.registry.RegistryManager;
-import org.blockartistry.DynSurround.registry.RegistryManager.RegistryType;
+import org.blockartistry.DynSurround.client.shader.Shaders;
+import org.blockartistry.DynSurround.event.DiagnosticEvent;
 import org.blockartistry.lib.DiurnalUtils;
-import org.blockartistry.lib.random.MurmurHash3;
+import org.blockartistry.lib.math.TimerEMA;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.world.World;
 import net.minecraftforge.fml.relauncher.SideOnly;
+import net.minecraftforge.client.event.RenderWorldLastEvent;
+import net.minecraftforge.fml.common.eventhandler.EventPriority;
+import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.relauncher.Side;
 
 @SideOnly(Side.CLIENT)
 public final class AuroraEffectHandler extends EffectHandlerBase {
 
-	// Aurora information
-	private static Aurora current;
-	private static int dimensionId;
+	private final IAuroraEngine auroraEngine;
 
-	private final DimensionRegistry registry = RegistryManager.get(RegistryType.DIMENSION);
+	private IAurora current;
+	private int dimensionId;
+
+	private final TimerEMA timer = new TimerEMA("Aurora Render");
+	private long nanos;
 
 	public AuroraEffectHandler() {
-		super("AuroraEffectHandler");
-	}
+		super("Aurora Effect");
 
-	@Nullable
-	public static Aurora getCurrentAurora() {
-		return current;
+		if (ModOptions.aurora.auroraUseShader && Shaders.areShadersSupported())
+			this.auroraEngine = new AuroraEngineShader();
+		else
+			this.auroraEngine = new AuroraEngineClassic();
 	}
 
 	@Override
 	public void onConnect() {
-		current = null;
+		this.current = null;
+		DiagnosticHandler.INSTANCE.addTimer(this.timer);
 	}
 
 	@Override
 	public void onDisconnect() {
-		current = null;
+		this.current = null;
 	}
 
 	private boolean spawnAurora(@Nonnull final World world) {
-		if (!ModOptions.auroraEnable || current != null
-				|| Minecraft.getMinecraft().gameSettings.renderDistanceChunks < 6
+		if (!ModOptions.aurora.auroraEnable)
+			return false;
+
+		if (this.current != null || Minecraft.getMinecraft().gameSettings.renderDistanceChunks < 6
 				|| DiurnalUtils.isAuroraInvisible(world))
 			return false;
-		return this.registry.hasAuroras(world) && EnvironState.getPlayerBiome().getHasAurora();
+		return AuroraUtils.hasAuroras() && EnvironState.getPlayerBiome().getHasAurora();
 	}
 
 	private boolean canAuroraStay(@Nonnull final World world) {
+		if (!ModOptions.aurora.auroraEnable)
+			return false;
+
 		return Minecraft.getMinecraft().gameSettings.renderDistanceChunks < 6
 				|| DiurnalUtils.isAuroraVisible(world) && EnvironState.getPlayerBiome().getHasAurora();
 	}
 
-	private long getAuroraSeed(@Nonnull final World world) {
-		return MurmurHash3.hash(world.getWorldTime() / 24000L);
-	}
-
 	@Override
-	public void process(@Nonnull final World world, @Nonnull final EntityPlayer player) {
+	public void process(@Nonnull final EntityPlayer player) {
 
 		// Process the current aurora
-		if (current != null) {
+		if (this.current != null) {
 			// If completed or the player changed dimensions we want to kill
 			// outright
-			if (current.isComplete() || dimensionId != EnvironState.getDimensionId()) {
-				current = null;
+			if (this.current.isComplete() || this.dimensionId != EnvironState.getDimensionId()
+					|| !ModOptions.aurora.auroraEnable) {
+				this.current = null;
 			} else {
-				current.update();
-				if (current.isAlive() && !canAuroraStay(world)) {
+				this.current.update();
+				final boolean isDying = this.current.isDying();
+				final boolean canStay = canAuroraStay(player.getEntityWorld());
+				if (isDying && canStay) {
+					DSurround.log().debug("Unfading aurora...");
+					this.current.setFading(false);
+				} else if (!isDying && !canStay) {
 					DSurround.log().debug("Aurora fade...");
-					current.die();
+					this.current.setFading(true);
 				}
 			}
 		}
 
 		// If there isn't a current aurora see if it needs to spawn
-		if (spawnAurora(world)) {
-			current = new Aurora(getAuroraSeed(world));
-			DSurround.log().debug("New aurora [%s]", current.toString());
+		if (spawnAurora(player.getEntityWorld())) {
+			this.current = this.auroraEngine.produce(AuroraUtils.getSeed());
+			DSurround.log().debug("New aurora [%s]", this.current.toString());
 		}
 
 		// Set the dimension in case it changed
-		dimensionId = EnvironState.getDimensionId();
+		this.dimensionId = EnvironState.getDimensionId();
+
+		this.timer.update(this.nanos);
+		this.nanos = 0;
+	}
+
+	@SubscribeEvent(priority = EventPriority.LOWEST)
+	public void doRender(@Nonnull final RenderWorldLastEvent event) {
+
+		final long start = System.nanoTime();
+
+		if (this.current != null)
+			this.current.render(event.getPartialTicks());
+
+		this.nanos += System.nanoTime() - start;
+	}
+
+	@SubscribeEvent
+	public void diagnostic(@Nonnull final DiagnosticEvent.Gather event) {
+		event.output.add("Aurora: " + (this.current == null ? "NONE" : this.current.toString()));
 	}
 
 }

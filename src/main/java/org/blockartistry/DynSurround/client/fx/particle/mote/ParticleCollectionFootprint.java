@@ -26,8 +26,8 @@ package org.blockartistry.DynSurround.client.fx.particle.mote;
 
 import javax.annotation.Nonnull;
 
-import org.blockartistry.DynSurround.DSurround;
-import org.blockartistry.DynSurround.ModOptions;
+import org.blockartistry.lib.gfx.OpenGlUtil;
+
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.util.ResourceLocation;
 import net.minecraft.world.World;
@@ -37,61 +37,24 @@ import net.minecraftforge.fml.relauncher.SideOnly;
 @SideOnly(Side.CLIENT)
 public class ParticleCollectionFootprint extends ParticleCollection {
 
-	public static enum Style {
-
-		// Regular shoe print style
-		SHOE("textures/particles/footprint.png"),
-
-		// Print that looks like a square and matches Minecraft blockiness
-		SQUARE("textures/particles/footprint_square.png"),
-
-		// Horseshoe shaped print. Good with Quadruped feature enabled
-		HORSESHOE("textures/particles/footprint_horseshoe.png"),
-		
-		// Bird 3 toed prints.
-		BIRD("textures/particles/footprint_bird.png"),
-
-		// Animal paw
-		PAW("textures/particles/footprint_paw.png");
-
-		private final ResourceLocation resource;
-
-		private Style(@Nonnull final String texture) {
-			this.resource = new ResourceLocation(DSurround.RESOURCE_ID, texture);
-		}
-
-		@Nonnull
-		public ResourceLocation getTexture() {
-			return this.resource;
-		}
-
-		@Nonnull
-		public static Style getStyle(final int v) {
-			if (v >= values().length)
-				return SHOE;
-			return values()[v];
-		}
-	}
-
 	public ParticleCollectionFootprint(@Nonnull final World world, @Nonnull final ResourceLocation tex) {
 		super(world, tex);
-
 	}
 
-	protected void bindTexture(@Nonnull final ResourceLocation resource) {
-		final ResourceLocation res = Style.getStyle(ModOptions.footprintStyle).getTexture();
-		super.bindTexture(res);
+	@Override
+	public boolean shouldDisableDepth() {
+		return true;
 	}
 
 	@Override
 	protected void preRender() {
-		GlStateManager.enableBlend();
-		GlStateManager.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
+		super.preRender();
+		GlStateManager.depthMask(false);
+		OpenGlUtil.setStandardBlend();
 	}
 
-	@Override
-	protected void postRender() {
-		GlStateManager.disableBlend();
-	}
+	public static final ICollectionFactory FACTORY = (world, texture) -> {
+		return new ParticleCollectionFootprint(world, texture);
+	};
 
 }

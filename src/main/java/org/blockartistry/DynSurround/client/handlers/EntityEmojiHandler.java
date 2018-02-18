@@ -36,11 +36,9 @@ import org.blockartistry.DynSurround.client.handlers.EnvironStateHandler.Environ
 import org.blockartistry.DynSurround.entity.IEmojiDataSettable;
 import org.blockartistry.lib.WorldUtils;
 
-import gnu.trove.iterator.TIntObjectIterator;
 import gnu.trove.map.hash.TIntObjectHashMap;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.world.World;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
@@ -51,22 +49,19 @@ public class EntityEmojiHandler extends EffectHandlerBase {
 	private final TIntObjectHashMap<IParticleMote> emojiParticles = new TIntObjectHashMap<IParticleMote>();
 
 	public EntityEmojiHandler() {
-		super("EntityEmojiHandler");
+		super("Entity Emojis");
+	}
+	
+	@Override
+	public boolean doTick(final int tick) {
+		return this.emojiParticles.size() > 0;
 	}
 
 	@Override
-	public void process(@Nonnull final World world, @Nonnull final EntityPlayer player) {
-
-		if (this.emojiParticles.size() > 0) {
-			// Get rid of dead particles
-			final TIntObjectIterator<IParticleMote> data = this.emojiParticles.iterator();
-			while (data.hasNext()) {
-				data.advance();
-				if (!data.value().isAlive())
-					data.remove();
-			}
-		}
-
+	public void process(@Nonnull final EntityPlayer player) {
+		this.emojiParticles.retainEntries((idx, emoji) -> {
+			return emoji.isAlive();
+		});
 	}
 
 	@SubscribeEvent
@@ -78,10 +73,11 @@ public class EntityEmojiHandler extends EffectHandlerBase {
 			data.setEmotionalState(event.emotionalState);
 			data.setEmojiType(event.emojiType);
 
-			if (ModOptions.enableEntityEmojis && entity.isEntityAlive() && data.getEmojiType() != EmojiType.NONE
-					&& !this.emojiParticles.contains(event.entityId)) {
+			if (ModOptions.speechbubbles.enableEntityEmojis && entity.isEntityAlive()
+					&& data.getEmojiType() != EmojiType.NONE && !this.emojiParticles.contains(event.entityId)) {
 				final IParticleMote mote = ParticleCollections.addEmoji(entity);
-				this.emojiParticles.put(event.entityId, mote);
+				if (mote != null)
+					this.emojiParticles.put(event.entityId, mote);
 			}
 		}
 	}

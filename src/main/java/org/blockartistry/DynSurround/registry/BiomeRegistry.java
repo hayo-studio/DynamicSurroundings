@@ -27,8 +27,6 @@ package org.blockartistry.DynSurround.registry;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.IdentityHashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
@@ -39,13 +37,26 @@ import javax.annotation.Nullable;
 import org.apache.commons.lang3.StringUtils;
 import org.blockartistry.DynSurround.DSurround;
 import org.blockartistry.DynSurround.ModOptions;
+import org.blockartistry.DynSurround.client.handlers.EnvironStateHandler.EnvironState;
 import org.blockartistry.DynSurround.data.xface.BiomeConfig;
+import org.blockartistry.DynSurround.data.xface.ModConfigurationFile;
+import org.blockartistry.DynSurround.event.ReloadEvent;
+import org.blockartistry.lib.math.MathStuff;
 
-import gnu.trove.map.hash.TIntObjectHashMap;
+import net.minecraft.block.material.Material;
+import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.util.ResourceLocation;
+import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.biome.Biome;
+import net.minecraftforge.common.MinecraftForge;
+import net.minecraftforge.fml.common.registry.ForgeRegistries;
 import net.minecraftforge.fml.relauncher.Side;
+import net.minecraftforge.fml.relauncher.SideOnly;
 
+@SideOnly(Side.CLIENT)
 public final class BiomeRegistry extends Registry {
+
+	private static final int INSIDE_Y_ADJUST = 3;
 
 	public static final FakeBiome UNDERGROUND = new FakeBiome("Underground");
 	public static final FakeBiome PLAYER = new FakeBiome("Player");
@@ -58,47 +69,54 @@ public final class BiomeRegistry extends Registry {
 	public static final FakeBiome VILLAGE = new FakeBiome("Village");
 	public static final FakeBiome BATTLE_MUSIC = new FakeBiome("BattleMusic");
 
-	public BiomeInfo VILLAGE_INFO;
-	public BiomeInfo PLAYER_INFO;
 	public BiomeInfo UNDERGROUND_INFO;
+	public BiomeInfo PLAYER_INFO;
+	public BiomeInfo UNDERRIVER_INFO;
+	public BiomeInfo UNDEROCEAN_INFO;
+	public BiomeInfo UNDERDEEPOCEAN_INFO;
+	public BiomeInfo UNDERWATER_INFO;
+
+	public BiomeInfo VILLAGE_INFO;
 	public BiomeInfo CLOUDS_INFO;
 	public BiomeInfo OUTERSPACE_INFO;
-	public BiomeInfo WTF_INFO;
 	public BiomeInfo BATTLE_MUSIC_INFO;
+	public BiomeInfo WTF_INFO;
 
 	// This is for cases when the biome coming in doesn't make sense
 	// and should default to something to avoid crap.
 	private static final FakeBiome WTF = new WTFFakeBiome();
 
-	private final Map<Biome, BiomeInfo> registry = new IdentityHashMap<Biome, BiomeInfo>();
-	private final TIntObjectHashMap<BiomeInfo> fallback = new TIntObjectHashMap<BiomeInfo>();
-
+	private final Map<ResourceLocation, BiomeInfo> registry = new HashMap<ResourceLocation, BiomeInfo>();
 	private final Map<String, String> biomeAliases = new HashMap<String, String>();
 
-	BiomeRegistry(@Nonnull final Side side) {
+	public BiomeRegistry(@Nonnull final Side side) {
 		super(side);
 	}
 
 	private void register(@Nonnull final Biome biome) {
-		final BiomeInfo e = new BiomeInfo(biome);
-		this.registry.put(e.biome, e);
-		this.fallback.put(e.getBiomeId(), e);
+		register(new BiomeHandler(biome));
 	}
 
+	private void register(@Nonnull final IBiome biome) {
+		this.registry.put(biome.getKey(), new BiomeInfo(biome));
+	}
+
+	@SuppressWarnings("deprecation")
 	@Override
 	public void init() {
 		this.biomeAliases.clear();
 		this.registry.clear();
 
-		for (final String entry : ModOptions.biomeAliases) {
+		for (final String entry : ModOptions.biomes.biomeAliases) {
 			final String[] parts = StringUtils.split(entry, "=");
 			if (parts.length == 2) {
 				this.biomeAliases.put(parts[0], parts[1]);
 			}
 		}
 
-		for (Iterator<Biome> itr = Biome.REGISTRY.iterator(); itr.hasNext();)
-			register(itr.next());
+		// ForgeRegistries.BIOMES.getValuesCollection().forEach(biome ->
+		// register(biome));
+		ForgeRegistries.BIOMES.getValues().forEach(biome -> register(biome));
 
 		// Add our fake biomes
 		register(UNDERWATER);
@@ -112,9 +130,14 @@ public final class BiomeRegistry extends Registry {
 		register(OUTERSPACE);
 		register(BATTLE_MUSIC);
 
-		this.PLAYER_INFO = resolve(PLAYER);
-		this.VILLAGE_INFO = resolve(VILLAGE);
 		this.UNDERGROUND_INFO = resolve(UNDERGROUND);
+		this.PLAYER_INFO = resolve(PLAYER);
+		this.UNDERRIVER_INFO = resolve(UNDERRIVER);
+		this.UNDEROCEAN_INFO = resolve(UNDEROCEAN);
+		this.UNDERDEEPOCEAN_INFO = resolve(UNDERDEEPOCEAN);
+
+		this.UNDERWATER_INFO = resolve(UNDERWATER);
+		this.VILLAGE_INFO = resolve(VILLAGE);
 		this.CLOUDS_INFO = resolve(CLOUDS);
 		this.OUTERSPACE_INFO = resolve(OUTERSPACE);
 		this.BATTLE_MUSIC_INFO = resolve(BATTLE_MUSIC);
@@ -125,13 +148,18 @@ public final class BiomeRegistry extends Registry {
 	}
 
 	@Override
+	public void configure(@Nonnull final ModConfigurationFile cfg) {
+		cfg.biomeAlias.forEach((alias, biome) -> this.registerBiomeAlias(alias, biome));
+		cfg.biomes.forEach(biome -> this.register(biome));
+	}
+
+	@Override
 	public void initComplete() {
-		if (ModOptions.enableDebugLogging) {
+		if (ModOptions.logging.enableDebugLogging) {
 			DSurround.log().info("*** BIOME REGISTRY ***");
 			final List<BiomeInfo> info = new ArrayList<BiomeInfo>(this.registry.values());
 			Collections.sort(info);
-			for (final BiomeInfo entry : info)
-				DSurround.log().info(entry.toString());
+			info.forEach(e -> DSurround.log().info(e.toString()));
 		}
 
 		// Free memory because we no longer need
@@ -143,26 +171,14 @@ public final class BiomeRegistry extends Registry {
 
 	}
 
-	private int biomeId(@Nonnull final Biome biome) {
-		int result = Biome.getIdForBiome(biome);
-		if (result == -1) {
-			final String name = biome.getBiomeName();
-			if ("Plains".equals(name))
-				result = 1;
-			else if ("Ocean".equals(name))
-				result = 0;
-		}
-		return result;
+	@Nullable
+	BiomeInfo resolve(@Nonnull final IBiome biome) {
+		return this.registry.get(biome.getKey());
 	}
 
 	@Nullable
 	private BiomeInfo resolve(@Nonnull final Biome biome) {
-		BiomeInfo result = this.registry.get(biome);
-		if (result == null) {
-			final int id = biomeId(biome);
-			result = this.fallback.get(id);
-		}
-		return result;
+		return this.registry.get(BiomeHandler.getKey(biome));
 	}
 
 	@Nonnull
@@ -175,7 +191,7 @@ public final class BiomeRegistry extends Registry {
 		if (result == null) {
 			DSurround.log().warn("Biome [%s] not detected during initialization - forcing reload (%s)",
 					biome.getBiomeName(), biome.getClass());
-			RegistryManager.reloadResources(this.side);
+			MinecraftForge.EVENT_BUS.post(new ReloadEvent.Configuration(this.side));
 			result = resolve(biome);
 
 			if (result == null) {
@@ -185,6 +201,36 @@ public final class BiomeRegistry extends Registry {
 			}
 		}
 		return result;
+	}
+
+	@Nonnull
+	public BiomeInfo getPlayerBiome(@Nonnull final EntityPlayer player, final boolean getTrue) {
+		Biome biome = player.getEntityWorld().getBiome(new BlockPos(player.posX, 0, player.posZ));
+		BiomeInfo info = this.get(biome);
+
+		if (!getTrue) {
+			if (player.isInsideOfMaterial(Material.WATER)) {
+				if (info.isRiver())
+					info = this.UNDERRIVER_INFO;
+				else if (info.isDeepOcean())
+					info = this.UNDERDEEPOCEAN_INFO;
+				else if (info.isOcean())
+					info = this.UNDEROCEAN_INFO;
+				else
+					info = this.UNDERWATER_INFO;
+			} else {
+				final DimensionInfo dimInfo = EnvironState.getDimensionInfo();
+				final int theY = MathStuff.floor(player.posY);
+				if ((theY + INSIDE_Y_ADJUST) <= dimInfo.getSeaLevel())
+					info = this.UNDERGROUND_INFO;
+				else if (theY >= dimInfo.getSpaceHeight())
+					info = this.OUTERSPACE_INFO;
+				else if (theY >= dimInfo.getCloudHeight())
+					info = this.CLOUDS_INFO;
+			}
+		}
+
+		return info;
 	}
 
 	final boolean isBiomeMatch(@Nonnull final BiomeConfig entry, @Nonnull final BiomeInfo info) {
@@ -200,9 +246,9 @@ public final class BiomeRegistry extends Registry {
 
 	public void register(@Nonnull final BiomeConfig entry) {
 		final BiomeMatcher matcher = BiomeMatcher.getMatcher(entry);
-		for (final BiomeInfo biomeEntry : this.registry.values()) {
-			if (matcher.match(biomeEntry))
-				biomeEntry.update(entry);
-		}
+		this.registry.values().forEach(info -> {
+			if (matcher.match(info))
+				info.update(entry);
+		});
 	}
 }

@@ -27,14 +27,13 @@ package org.blockartistry.DynSurround.client.hud;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.blockartistry.DynSurround.DSurround;
+import org.blockartistry.DynSurround.Permissions;
 import org.blockartistry.DynSurround.client.handlers.EnvironStateHandler.EnvironState;
+import org.blockartistry.lib.compat.ModEnvironment;
 
 import net.minecraft.client.Minecraft;
-import net.minecraft.world.World;
 import net.minecraftforge.client.event.RenderGameOverlayEvent;
 import net.minecraftforge.common.MinecraftForge;
-import net.minecraftforge.fml.client.FMLClientHandler;
 import net.minecraftforge.fml.common.eventhandler.EventPriority;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.gameevent.TickEvent;
@@ -49,9 +48,16 @@ public final class GuiHUDHandler {
 
 	private GuiHUDHandler() {
 		register(new PotionHUD());
-		register(new CompassHUD());
-		register(new BlockInfoHelperHUD());
-		register(new LightLevelHUD());
+		register(new InspectionHUD());
+
+		if (ModEnvironment.Albedo.isLoaded())
+			register(new LightingEffectHUD());
+
+		if (Permissions.instance().allowCompassAndClockHUD())
+			register(new CompassHUD());
+
+		if (Permissions.instance().allowLightLevelHUD())
+			register(new LightLevelHUD());
 	}
 
 	private final List<GuiOverlay> overlays = new ArrayList<GuiOverlay>();
@@ -66,8 +72,10 @@ public final class GuiHUDHandler {
 	}
 
 	public static void unregister() {
-		MinecraftForge.EVENT_BUS.unregister(INSTANCE);
-		INSTANCE = null;
+		if (INSTANCE != null) {
+			MinecraftForge.EVENT_BUS.unregister(INSTANCE);
+			INSTANCE = null;
+		}
 	}
 
 	@SubscribeEvent(priority = EventPriority.HIGH)
@@ -83,20 +91,19 @@ public final class GuiHUDHandler {
 	}
 
 	@SubscribeEvent
-	public void clientTick(final TickEvent.ClientTickEvent event) {
-		if (Minecraft.getMinecraft().isGamePaused())
+	public void playerTick(final TickEvent.PlayerTickEvent event) {
+		if (event.side == Side.SERVER || event.phase == Phase.END || Minecraft.getMinecraft().isGamePaused())
 			return;
 
-		final World world = FMLClientHandler.instance().getClient().world;
-		if (world == null)
+		if (event.player == null || event.player.world == null)
 			return;
 
-		if (event.phase == Phase.START) {
-			DSurround.getProfiler().startSection("DSurroundGuiHUDHandler");
-			final int tickRef = EnvironState.getTickCounter();
-			for (int i = 0; i < this.overlays.size(); i++)
-				this.overlays.get(i).doTick(tickRef);
-			DSurround.getProfiler().endSection();
-		}
+		if (event.player != Minecraft.getMinecraft().player)
+			return;
+
+		final int tickRef = EnvironState.getTickCounter();
+		for (int i = 0; i < this.overlays.size(); i++)
+			this.overlays.get(i).doTick(tickRef);
+
 	}
 }

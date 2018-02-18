@@ -43,14 +43,12 @@ import org.blockartistry.lib.Translations;
 import org.blockartistry.lib.WorldUtils;
 
 import com.google.common.base.Function;
-import gnu.trove.iterator.TIntObjectIterator;
 import gnu.trove.map.hash.TIntObjectHashMap;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.resources.IResource;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.util.ResourceLocation;
-import net.minecraft.world.World;
 import net.minecraftforge.fml.common.eventhandler.EventPriority;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.relauncher.Side;
@@ -89,6 +87,7 @@ public class SpeechBubbleHandler extends EffectHandlerBase {
 		this.xlate.transform(new Stripper());
 
 		try (final IResource resource = Minecraft.getMinecraft().getResourceManager().getResource(SPLASH_TEXT)) {
+			@SuppressWarnings("deprecation")
 			final BufferedReader bufferedreader = new BufferedReader(
 					new InputStreamReader(resource.getInputStream(), Charsets.UTF_8));
 			String s;
@@ -107,7 +106,7 @@ public class SpeechBubbleHandler extends EffectHandlerBase {
 	}
 
 	public SpeechBubbleHandler() {
-		super("SpeechBubbleHandler");
+		super("Speech Bubbles");
 		loadText();
 	}
 
@@ -128,27 +127,22 @@ public class SpeechBubbleHandler extends EffectHandlerBase {
 			this.messages.put(entity.getEntityId(), ctx = new EntityBubbleContext());
 		}
 
-		final int expiry = EnvironState.getTickCounter() + (int) (ModOptions.speechBubbleDuration * 20F);
+		final int expiry = EnvironState.getTickCounter() + (int) (ModOptions.speechbubbles.speechBubbleDuration * 20F);
 		ctx.add(new SpeechBubbleData(message, expiry));
 		ctx.handleBubble(entity);
 	}
 
 	@Override
-	public void process(@Nonnull final World world, @Nonnull final EntityPlayer player) {
-
-		if (this.messages.size() == 0)
-			return;
-
-		// Go through the cached messages and get rid of those
-		// that expire.
+	public boolean doTick(final int tick) {
+		return this.messages.size() > 0;
+	}
+	
+	@Override
+	public void process(@Nonnull final EntityPlayer player) {
 		final int currentTick = EnvironState.getTickCounter();
-		final TIntObjectIterator<EntityBubbleContext> entityData = this.messages.iterator();
-		while (entityData.hasNext()) {
-			entityData.advance();
-			final EntityBubbleContext ctx = entityData.value();
-			if (ctx.clean(currentTick))
-				entityData.remove();
-		}
+		this.messages.retainEntries((idx, ctx) -> {
+			return !ctx.clean(currentTick);
+		});
 	}
 
 	@Override
@@ -167,9 +161,9 @@ public class SpeechBubbleHandler extends EffectHandlerBase {
 		final Entity entity = WorldUtils.locateEntity(EnvironState.getWorld(), event.entityId);
 		if (entity == null)
 			return;
-		else if ((entity instanceof EntityPlayer) && !ModOptions.enableSpeechBubbles)
+		else if ((entity instanceof EntityPlayer) && !ModOptions.speechbubbles.enableSpeechBubbles)
 			return;
-		else if (!ModOptions.enableEntityChat)
+		else if (!ModOptions.speechbubbles.enableEntityChat)
 			return;
 
 		if (event.translate)

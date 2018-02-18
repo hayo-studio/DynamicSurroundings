@@ -1,0 +1,26 @@
+{
+	"footsteps": {
+		"ceramics:clay_hard": "sandstone",
+		"ceramics:clay_slab": "sandstone",
+		"ceramics:clay_soft": "dirt",
+		"ceramics:clay_wall": "NOT_EMITTER",
+		"ceramics:clay_wall+bigger": "sandstone",
+		"ceramics:dark_bricks_stairs": "sandstone",
+		"ceramics:dragon_bricks_stairs": "sandstone",
+		"ceramics:golden_bricks_stairs": "sandstone",
+		"ceramics:marine_bricks_stairs": "sandstone",
+		"ceramics:porcelain": "sandstone",
+		"ceramics:porcelain_bricks_stairs": "sandstone",
+		"ceramics:clay_barrel": "brickstone",
+		"ceramics:clay_barrel_stained": "brickstone",
+		"ceramics:clay_barrel_stained_extension": "brickstone",
+		"ceramics:clay_barrel_unfired": "dirt",
+		"ceramics:clay_bucket_block": "dirt",
+		"ceramics:faucet": "sandstone",
+		"ceramics:lava_bricks_stairs": "sandstone",
+		"ceramics:porcelain_barrel": "sandstone",
+		"ceramics:porcelain_barrel_extension": "sandstone",
+		"ceramics:rainbow_bricks_stairs": "sandstone",
+		"ceramics:rainbow_clay": "dirt"
+	}
+}

@@ -25,59 +25,34 @@
 package org.blockartistry.DynSurround.client.fx;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import org.blockartistry.DynSurround.DSurround;
-import org.blockartistry.DynSurround.client.fx.particle.ParticleHelper;
+import org.blockartistry.DynSurround.client.footsteps.interfaces.FootprintStyle;
 import org.blockartistry.DynSurround.client.fx.particle.mote.IParticleMote;
 import org.blockartistry.DynSurround.client.fx.particle.mote.MoteEmoji;
+import org.blockartistry.DynSurround.client.fx.particle.mote.MoteFireFly;
 import org.blockartistry.DynSurround.client.fx.particle.mote.MoteFootprint;
 import org.blockartistry.DynSurround.client.fx.particle.mote.MoteRainSplash;
 import org.blockartistry.DynSurround.client.fx.particle.mote.MoteWaterRipple;
 import org.blockartistry.DynSurround.client.fx.particle.mote.MoteWaterSpray;
-import org.blockartistry.DynSurround.client.fx.particle.mote.ParticleCollection;
+import org.blockartistry.DynSurround.client.fx.particle.mote.ParticleCollectionFireFly;
 import org.blockartistry.DynSurround.client.fx.particle.mote.ParticleCollectionFootprint;
 import org.blockartistry.DynSurround.client.fx.particle.mote.ParticleCollectionRipples;
-import org.blockartistry.DynSurround.client.handlers.EnvironStateHandler.EnvironState;
+import org.blockartistry.DynSurround.event.DiagnosticEvent;
 
+import net.minecraft.client.multiplayer.WorldClient;
 import net.minecraft.entity.Entity;
 import net.minecraft.util.ResourceLocation;
+import net.minecraft.util.text.TextFormatting;
 import net.minecraft.world.World;
+import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
+import net.minecraftforge.event.world.WorldEvent;
 
 @SideOnly(Side.CLIENT)
 public final class ParticleCollections {
-
-	private static class CollectionHelper {
-
-		private final Class<? extends ParticleCollection> factory;
-		private final ResourceLocation texture;
-
-		private ParticleCollection collection;
-
-		public CollectionHelper(@Nonnull final ResourceLocation texture) {
-			this(ParticleCollection.class, texture);
-		}
-
-		public CollectionHelper(@Nonnull final Class<? extends ParticleCollection> clazz,
-				@Nonnull final ResourceLocation texture) {
-			this.texture = texture;
-			this.factory = clazz;
-		}
-
-		public ParticleCollection get() {
-			if (this.collection == null || this.collection.shouldDie()) {
-				try {
-					this.collection = this.factory.getConstructor(World.class, ResourceLocation.class)
-							.newInstance(EnvironState.getWorld(), this.texture);
-				} catch (final Throwable t) {
-					throw new RuntimeException("Unknown ParticleCollection type!");
-				}
-				ParticleHelper.addParticle(this.collection);
-			}
-			return this.collection;
-		}
-	}
 
 	private static final ResourceLocation RIPPLE_TEXTURE = new ResourceLocation(DSurround.RESOURCE_ID,
 			"textures/particles/ripple.png");
@@ -87,46 +62,100 @@ public final class ParticleCollections {
 			"textures/particles/emojis.png");
 	private static final ResourceLocation FOOTPRINT_TEXTURE = new ResourceLocation(DSurround.RESOURCE_ID,
 			"textures/particles/footprint.png");
+	private static final ResourceLocation FIREFLY_TEXTURE = new ResourceLocation("textures/particle/particles.png");
 
-	private final static CollectionHelper theRipples = new CollectionHelper(ParticleCollectionRipples.class,
-			RIPPLE_TEXTURE);
-	private final static CollectionHelper theSprays = new CollectionHelper(SPRAY_TEXTURE);
-	private final static CollectionHelper theEmojis = new CollectionHelper(EMOJI_TEXTURE);
-	private final static CollectionHelper thePrints = new CollectionHelper(ParticleCollectionFootprint.class,
-			FOOTPRINT_TEXTURE);
+	private final static CollectionHelper theRipples = new CollectionHelper("Rain Ripples",
+			ParticleCollectionRipples.FACTORY, RIPPLE_TEXTURE);
+	private final static CollectionHelper theSprays = new CollectionHelper("Water Spray", SPRAY_TEXTURE);
+	private final static CollectionHelper theEmojis = new CollectionHelper("Emojis", EMOJI_TEXTURE);
+	private final static CollectionHelper thePrints = new CollectionHelper("Footprints",
+			ParticleCollectionFootprint.FACTORY, FOOTPRINT_TEXTURE);
+	private final static CollectionHelper theFireFlies = new LightedCollectionHelper("Fireflies",
+			ParticleCollectionFireFly.FACTORY, FIREFLY_TEXTURE);
 
+	@Nullable
 	public static IParticleMote addWaterRipple(@Nonnull final World world, final double x, final double y,
 			final double z) {
-		final IParticleMote mote = new MoteWaterRipple(world, x, y, z);
-		theRipples.get().addParticle(mote);
+		IParticleMote mote = null;
+		if (theRipples.get().canFit()) {
+			mote = new MoteWaterRipple(world, x, y, z);
+			theRipples.get().addParticle(mote);
+		}
 		return mote;
 	}
 
+	@Nullable
 	public static IParticleMote addWaterSpray(@Nonnull final World world, final double x, final double y,
 			final double z, final double dX, final double dY, final double dZ) {
-		final IParticleMote mote = new MoteWaterSpray(world, x, y, z, dX, dY, dZ);
-		theSprays.get().addParticle(mote);
+		IParticleMote mote = null;
+		if (theSprays.get().canFit()) {
+			mote = new MoteWaterSpray(world, x, y, z, dX, dY, dZ);
+			theSprays.get().addParticle(mote);
+		}
 		return mote;
 	}
 
+	@Nullable
 	public static IParticleMote addRainSplash(@Nonnull final World world, final double x, final double y,
 			final double z) {
-		final IParticleMote mote = new MoteRainSplash(world, x, y, z);
-		theSprays.get().addParticle(mote);
+		IParticleMote mote = null;
+		if (theSprays.get().canFit()) {
+			mote = new MoteRainSplash(world, x, y, z);
+			theSprays.get().addParticle(mote);
+		}
 		return mote;
 	}
 
+	@Nullable
 	public static IParticleMote addEmoji(@Nonnull final Entity entity) {
-		final IParticleMote mote = new MoteEmoji(entity);
-		theEmojis.get().addParticle(mote);
+		IParticleMote mote = null;
+		if (theEmojis.get().canFit()) {
+			mote = new MoteEmoji(entity);
+			theEmojis.get().addParticle(mote);
+		}
 		return mote;
 	}
 
-	public static IParticleMote addFootprint(@Nonnull final World world, final double x, final double y, final double z,
-			final float rot, final boolean isRight) {
-		final IParticleMote mote = new MoteFootprint(world, x, y, z, rot, isRight);
-		thePrints.get().addParticle(mote);
+	@Nullable
+	public static IParticleMote addFootprint(@Nonnull final FootprintStyle style, @Nonnull final World world,
+			final double x, final double y, final double z, final float rot, final float scale, final boolean isRight) {
+		IParticleMote mote = null;
+		if (thePrints.get().canFit()) {
+			mote = new MoteFootprint(style, world, x, y, z, rot, scale, isRight);
+			thePrints.get().addParticle(mote);
+		}
 		return mote;
 	}
 
+	@Nullable
+	public static IParticleMote addFireFly(@Nonnull final World world, final double x, final double y, final double z) {
+		IParticleMote mote = null;
+		if (theFireFlies.get().canFit()) {
+			mote = new MoteFireFly(world, x, y, z);
+			theFireFlies.get().addParticle(mote);
+		}
+		return mote;
+	}
+
+	@SubscribeEvent
+	public static void onWorldUnload(@Nonnull final WorldEvent.Unload event) {
+		if (event.getWorld() instanceof WorldClient) {
+			DSurround.log().debug("World [%s] unloading, clearing particle collections",
+					event.getWorld().provider.getDimensionType().getName());
+			theRipples.clear();
+			theSprays.clear();
+			theEmojis.clear();
+			thePrints.clear();
+			theFireFlies.clear();
+		}
+	}
+
+	@SubscribeEvent
+	public static void diagnostics(@Nonnull final DiagnosticEvent.Gather event) {
+		event.output.add(TextFormatting.AQUA + thePrints.toString());
+		event.output.add(TextFormatting.AQUA + theRipples.toString());
+		event.output.add(TextFormatting.AQUA + theSprays.toString());
+		event.output.add(TextFormatting.AQUA + theFireFlies.toString());
+		event.output.add(TextFormatting.AQUA + theEmojis.toString());
+	}
 }

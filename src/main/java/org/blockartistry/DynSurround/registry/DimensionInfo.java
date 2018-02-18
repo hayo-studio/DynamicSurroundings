@@ -29,9 +29,8 @@ import javax.annotation.Nonnull;
 import org.blockartistry.DynSurround.ModOptions;
 import org.blockartistry.DynSurround.data.xface.DimensionConfig;
 
-import com.google.common.base.Objects;
-import com.google.common.base.Objects.ToStringHelper;
-
+import com.google.common.base.MoreObjects;
+import com.google.common.base.MoreObjects.ToStringHelper;
 import net.minecraft.world.World;
 import net.minecraft.world.WorldType;
 
@@ -71,8 +70,8 @@ public final class DimensionInfo {
 
 		if (wt == WorldType.FLAT)
 			this.seaLevel = 0;
-		else if (this.dimensionId == 0 && ModOptions.worldSealevelOverride > 0)
-			this.seaLevel = ModOptions.worldSealevelOverride;
+		else if (this.dimensionId == 0 && ModOptions.biomes.worldSealevelOverride > 0)
+			this.seaLevel = ModOptions.biomes.worldSealevelOverride;
 	}
 
 	public DimensionInfo(@Nonnull final World world, @Nonnull final DimensionConfig entry) {
@@ -141,7 +140,7 @@ public final class DimensionInfo {
 	@Override
 	@Nonnull
 	public String toString() {
-		final ToStringHelper builder = Objects.toStringHelper(this);
+		final ToStringHelper builder = MoreObjects.toStringHelper(this);
 		builder.add("id", this.dimensionId);
 		builder.add("name", this.name);
 		builder.add("seaLevel", this.seaLevel);

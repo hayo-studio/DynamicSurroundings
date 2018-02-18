@@ -24,7 +24,10 @@
 
 package org.blockartistry.DynSurround.client.fx.particle.mote;
 
-import net.minecraft.client.renderer.VertexBuffer;
+import org.blockartistry.lib.BiomeUtils;
+import org.blockartistry.lib.Color;
+
+import net.minecraft.client.renderer.BufferBuilder;
 import net.minecraft.entity.Entity;
 import net.minecraft.world.World;
 import net.minecraftforge.fml.relauncher.Side;
@@ -59,9 +62,18 @@ public class MoteWaterSpray extends MoteMotionBase {
 		this.f4 = 0.07F * this.scale;
 
 	}
+	
+	@Override
+	public void configureColor() {
+		final Color waterColor = BiomeUtils.getColorForLiquid(this.world, this.position);
+		this.red = waterColor.red;
+		this.green = waterColor.green;
+		this.blue = waterColor.blue;
+		this.alpha = 1F;
+	}
 
 	@Override
-	public void renderParticle(VertexBuffer buffer, Entity entityIn, float partialTicks, float rotationX,
+	public void renderParticle(BufferBuilder buffer, Entity entityIn, float partialTicks, float rotationX,
 			float rotationZ, float rotationYZ, float rotationXY, float rotationXZ) {
 
 		final float x = renderX(partialTicks);

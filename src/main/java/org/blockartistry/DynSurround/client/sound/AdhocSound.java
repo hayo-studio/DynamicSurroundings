@@ -25,14 +25,37 @@ package org.blockartistry.DynSurround.client.sound;
 
 import javax.annotation.Nonnull;
 
+import org.blockartistry.lib.compat.PositionedSoundUtil;
+import org.blockartistry.lib.sound.BasicSound;
+
+import net.minecraft.client.audio.PositionedSound;
+import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.SoundCategory;
 import net.minecraft.util.SoundEvent;
+import net.minecraftforge.fml.relauncher.Side;
+import net.minecraftforge.fml.relauncher.SideOnly;
 
+@SideOnly(Side.CLIENT)
 public class AdhocSound extends BasicSound<AdhocSound> {
+
+	// Used for sound routing
+	public AdhocSound(@Nonnull final NBTTagCompound nbt) {
+		super((ResourceLocation) null, null);
+		this.deserializeNBT(nbt);
+	}
+
+	public AdhocSound(@Nonnull final SoundEvent event, @Nonnull final PositionedSound sound) {
+		super(event, sound.getCategory());
+
+		this.setPosition(sound.getXPosF(), sound.getYPosF(), sound.getZPosF());
+		this.setAttenuationType(sound.getAttenuationType());
+		this.setVolume(PositionedSoundUtil.getVolume(sound));
+		this.setPitch(PositionedSoundUtil.getPitch(sound));
+	}
 
 	public AdhocSound(@Nonnull final SoundEvent event, @Nonnull final SoundCategory cat) {
 		super(event, cat);
 	}
 
 }
-

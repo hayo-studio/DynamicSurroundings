@@ -53,7 +53,6 @@ final class ChiselFacadeAccessor implements IFacadeAccessor {
 			}
 		} catch (@Nonnull final Throwable t) {
 			DSurround.log().warn("Unable to locate %s.%s()", CLASS, METHOD);
-			DSurround.log().catching(t);
 		}
 	}
 
